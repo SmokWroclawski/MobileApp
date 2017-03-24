@@ -151,13 +151,12 @@ public class ChatActivity extends Activity {
 
 		String str = editTextSend.getText().toString();
 		textViewAnswer.append("You: " + str + "\n");
-		byte b = 0x00;
+//		byte b = 0x00;
+//		byte[] tmp = str.getBytes();
+//		byte[] tx = new byte[tmp.length + 1];
+//		tx[0] = b;
 		byte[] tmp = str.getBytes();
-		byte[] tx = new byte[tmp.length + 1];
-		tx[0] = b;
-		System.arraycopy(tmp, 0, tx, 1, tmp.length + 1 - 1);
-
-		characteristic.setValue(tx);
+		characteristic.setValue(tmp);
 		mBluetoothLeService.writeCharacteristic(characteristic);
 
 		editTextSend.setText("");
@@ -165,6 +164,7 @@ public class ChatActivity extends Activity {
 
 	private void displayData(byte[] byteArray) {
 		if (byteArray == null) return;
+//		Toast.makeText(getApplicationContext(), (byteArray.length) + "", Toast.LENGTH_LONG).show();
 
 		String data = new String(byteArray);
 		if(data.equals("error")) {
