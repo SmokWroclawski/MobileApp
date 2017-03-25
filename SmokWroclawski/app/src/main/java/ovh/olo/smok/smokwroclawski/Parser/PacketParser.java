@@ -1,9 +1,9 @@
 package ovh.olo.smok.smokwroclawski.Parser;
 
+
 import android.util.Log;
 
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.Arrays;
 
 import ovh.olo.smok.smokwroclawski.Object.WeatherData;
@@ -26,14 +26,22 @@ public class PacketParser {
         short humidity = 0;
         short pm25 = 0;
         short pm10 = 0;
-        try {
-            temperature = ByteBuffer.wrap(Arrays.copyOfRange(frame, 0, 2)).order(ByteOrder.BIG_ENDIAN).getShort();
-            pressure = ByteBuffer.wrap(Arrays.copyOfRange(frame, 2, 4)).order(ByteOrder.BIG_ENDIAN).getShort();
-            humidity = ByteBuffer.wrap(Arrays.copyOfRange(frame, 4, 6)).order(ByteOrder.BIG_ENDIAN).getShort();
-            pm25 = ByteBuffer.wrap(Arrays.copyOfRange(frame, 6, 8)).order(ByteOrder.BIG_ENDIAN).getShort();
-            pm10 = ByteBuffer.wrap(Arrays.copyOfRange(frame, 8, 10)).order(ByteOrder.BIG_ENDIAN).getShort();
-        } catch (Exception ignored) {}
 
+        if(frame.length == 0)
+            return new WeatherData(
+                temperature,
+                pressure,
+                humidity,
+                pm25,
+                pm10);
+
+        try {
+            temperature = ByteBuffer.wrap(Arrays.copyOfRange(frame, 0, 2)).getShort();
+            pressure = ByteBuffer.wrap(Arrays.copyOfRange(frame, 2, 4)).getShort();
+            humidity = ByteBuffer.wrap(Arrays.copyOfRange(frame, 4, 6)).getShort();
+            pm25 = ByteBuffer.wrap(Arrays.copyOfRange(frame, 6, 8)).getShort();
+            pm10 = ByteBuffer.wrap(Arrays.copyOfRange(frame, 8, 10)).getShort();
+        } catch (Exception ignored) {}
         return new WeatherData(
                 temperature,
                 pressure,

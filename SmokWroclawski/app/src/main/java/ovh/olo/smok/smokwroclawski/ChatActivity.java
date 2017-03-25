@@ -21,6 +21,8 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -170,7 +172,15 @@ public class ChatActivity extends Activity {
 		if(data.equals("error")) {
 			textViewAnswer.append(mDeviceName + ": " + data + "\n");
 		} else {
-			textViewAnswer.append(packetParser.parsePacket(byteArray).toString());
+			textViewAnswer.append(mDeviceName + "(ASCII): " + data + "\n");
+
+			StringBuilder sb = new StringBuilder();
+			for (byte b : byteArray) {
+				sb.append(String.format("%02X ", b));
+			}
+			textViewAnswer.append(mDeviceName + "(HEX): " + sb.toString() + "\n");
+
+			textViewAnswer.append(packetParser.parsePacket(byteArray).toString() + "\n");
 		}
 	}
 
