@@ -1,5 +1,6 @@
 package ovh.olo.smok.smokwroclawski;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
@@ -9,7 +10,10 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
@@ -18,12 +22,14 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class MainActivity extends Activity {
     private BluetoothAdapter mBluetoothAdapter;
     private static final int REQUEST_ENABLE_BT = 1;
+    private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
     private static final long SCAN_PERIOD = 3000;
     private Dialog mDialog;
     public static List<BluetoothDevice> mDevices = new ArrayList<BluetoothDevice>();
@@ -34,6 +40,22 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         setContentView(R.layout.main);
+
+        if (ContextCompat.checkSelfPermission(MainActivity.this,
+                Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION)) {
+
+            } else {
+
+                ActivityCompat.requestPermissions(MainActivity.this,
+                        new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                        PERMISSION_REQUEST_COARSE_LOCATION);
+            }
+        }
+
 
         if (!getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -68,6 +90,32 @@ public class MainActivity extends Activity {
         findDevices();
 
         instance = this;
+
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_REQUEST_COARSE_LOCATION: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted, yay!
+
+                } else {
+                        if (Objects.equals(Build.VERSION.RELEASE, "6.0"))
+                        {
+                            this.finishAffinity();
+                        }
+                    // permission denied, close app immediately - android 6.0 ble no location permissions bug
+                }
+                return;
+            }
+            // other 'case' lines to check for other
+            // permissions this app might request
+        }
     }
 
     private void findDevices() {
