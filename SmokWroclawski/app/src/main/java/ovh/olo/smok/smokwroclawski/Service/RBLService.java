@@ -48,6 +48,7 @@ public class RBLService extends Service {
 	private String mBluetoothDeviceAddress;
 	private BluetoothGatt mBluetoothGatt;
 
+	public final static String ACTION_READY = "ACTION_READY";
 	public final static String ACTION_GATT_CONNECTED = "ACTION_GATT_CONNECTED";
 	public final static String ACTION_GATT_DISCONNECTED = "ACTION_GATT_DISCONNECTED";
 	public final static String ACTION_GATT_SERVICES_DISCOVERED = "ACTION_GATT_SERVICES_DISCOVERED";
@@ -75,6 +76,7 @@ public class RBLService extends Service {
 				// Attempts to discover services after successful connection.
 				Log.i(TAG, "Attempting to start service discovery:"
 						+ mBluetoothGatt.discoverServices());
+
 			} else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
 				intentAction = ACTION_GATT_DISCONNECTED;
 				Log.i(TAG, "Disconnected from GATT server.");
@@ -291,6 +293,7 @@ public class RBLService extends Service {
 		}
 
 		mBluetoothGatt.writeCharacteristic(characteristic);
+
 	}
 
 	/**
@@ -329,7 +332,6 @@ public class RBLService extends Service {
 	public BluetoothGattService getSupportedGattService() {
 		if (mBluetoothGatt == null)
 			return null;
-
 		return mBluetoothGatt.getService(UUID_BLE_SHIELD_SERVICE);
 	}
 }
