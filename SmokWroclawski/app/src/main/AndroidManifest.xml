@@ -52,12 +52,10 @@
 
         <activity
             android:name=".Activity.DeviceActivity"
-            android:theme="@style/Theme.Transparent"></activity>
+            android:theme="@style/Theme.Transparent" />
 
-        <!--
-            android:theme="@android:style/Theme.Dialog"-->
-        <activity
-            android:name=".Activity.SensorActivity"></activity>
+        <!--             android:theme="@android:style/Theme.Dialog" -->
+        <activity android:name=".Activity.SensorActivity" />
 
         <service
             android:name=".Service.RBLService"
@@ -74,6 +72,9 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />
 
+        <activity
+            android:name=".Activity.SettingsActivity"
+            android:label="@string/title_activity_settings"></activity>
     </application>
 
 </manifest>

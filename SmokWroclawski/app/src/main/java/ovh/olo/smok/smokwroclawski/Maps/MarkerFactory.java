@@ -17,20 +17,22 @@ import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
  * Created by Michal on 2017-05-10.
  */
 
-public class MarkerBuilder {
+public class MarkerFactory {
     private GoogleMap map;
 
-    public MarkerBuilder() {
+    public MarkerFactory() {
         map = MainActivity.instance.getmMap();
     }
 
-    public void add(LatLng point, String title) {
+    public void add(LatLng point, String title, String description) {
         Marker existingMarker = getMarker(title);
-        if(existingMarker != null) existingMarker.remove();
+        if(existingMarker != null && existingMarker.getPosition() == point) return;
+
         Marker marker = map.addMarker(
                 new MarkerOptions()
                         .position(point)
                         .title(title)
+                        .snippet(description)
         );
         MainActivity.instance.getMarkers().add(marker);
     }

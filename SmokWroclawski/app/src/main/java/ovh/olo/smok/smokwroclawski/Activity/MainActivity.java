@@ -1,8 +1,8 @@
 package ovh.olo.smok.smokwroclawski.Activity;
 
 import android.Manifest;
+import android.animation.ObjectAnimator;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -11,12 +11,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -26,8 +25,12 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.AdapterView;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
@@ -41,10 +44,9 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,9 +56,16 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import ovh.olo.smok.smokwroclawski.Adapter.DrawerListAdapter;
-import ovh.olo.smok.smokwroclawski.Maps.MarkerBuilder;
+import ovh.olo.smok.smokwroclawski.Adapter.MyInfoWindowAdapter;
+import ovh.olo.smok.smokwroclawski.ConnectionRefresher;
+import ovh.olo.smok.smokwroclawski.Github.GithubReader;
+import ovh.olo.smok.smokwroclawski.InternetChecker;
+import ovh.olo.smok.smokwroclawski.LocationGPSManager;
 import ovh.olo.smok.smokwroclawski.Object.NavItem;
+import ovh.olo.smok.smokwroclawski.Object.SensorConfigData;
 import ovh.olo.smok.smokwroclawski.R;
+import ovh.olo.smok.smokwroclawski.ThingSpeak.ChartData;
+import ovh.olo.smok.smokwroclawski.ThingSpeak.ThingSpeakData;
 import ovh.olo.smok.smokwroclawski.Worker.FileWorker;
 
 public class MainActivity extends FragmentActivity implements OnMapReadyCallback,
@@ -64,13 +73,13 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         LocationListener {
     private BluetoothAdapter mBluetoothAdapter;
     private static final int REQUEST_ENABLE_BT = 1;
-    private static final int REQUEST_ENABLE_GPS = 2;
+
+    public static final int REQUEST_CHECK_SETTINGS = 3;
+
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
     private static final int PERMISSION_REQUEST_EXTERNAL_STORAGE = 2;
     private static final long SCAN_PERIOD = 3000;
 
-    public static final String API_KEY_NAME = "API_KEY";
-    public static final String CHANNEL_ID_NAME = "CHANNEL_ID";
     public static final String SENSOR_NAME = "SENSOR";
 
     public List<Marker> markers = new ArrayList<>();
@@ -80,20 +89,26 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     public static List<BluetoothDevice> mDevices = new ArrayList<BluetoothDevice>();
     public static MainActivity instance = null;
     public List<String> tabuList = new ArrayList<>();
+    public List<SensorConfigData> sensorConfigDatas = new ArrayList<>();
+    private ChartData data = null;
 
-    private boolean coarseLocFlag = false;
-    private boolean storageFlag = false;
-
+    private LocationManager manager;
     private GoogleMap mMap;
     private Location myLocation;
     private GoogleApiClient googleApiClient;
-    private Intent locationSettingsIntent;
+    private CameraPosition currCameraPosition;
 
     private ListView mDrawerList;
     private RelativeLayout mDrawerPane;
     private DrawerLayout mDrawerLayout;
     private DrawerListAdapter adapter;
     public ArrayList<NavItem> mNavItems = new ArrayList<>();
+
+    private volatile boolean searchStarted = false;
+
+    private CheckBox reconnectCheckBox;
+    private ProgressBar sendProgressBar;
+    private int progressBarStatus = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,8 +128,13 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 }
             }
         });
+        instance = MainActivity.this;
 
+        data = new ChartData();
+        sendProgressBar = (ProgressBar) findViewById(R.id.sendProgressBar);
+        reconnectCheckBox = (CheckBox) findViewById(R.id.reconnectCheckBox);
         getLayoutItems();
+
 
         preStartForLocation();
 
@@ -122,14 +142,15 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        instance = this;
-
         // DrawerLayout
         adapter = new DrawerListAdapter(this, mNavItems);
         adapter.setmSelectedItem(5);
         mDrawerList.setAdapter(adapter);
         addMenuItems();
         setListeners();
+
+
+
     }
 
     private void handleUncaughtException (Thread thread, Throwable e) throws IOException {
@@ -142,7 +163,40 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         System.exit(1); // kill off the crashed app
     }
 
-    private void checkPermissionsAndStartSearching() {
+    public void updateProgressBar() {
+        System.out.println("MAX: " + sendProgressBar.getMax());
+        progressBarStatus++;
+        Handler progressBarHandler = new Handler();
+        if(progressBarStatus > 0 ) {
+            sendProgressBar.setVisibility(View.VISIBLE);
+            reconnectCheckBox.setEnabled(false);
+        }
+        if(progressBarStatus >= sendProgressBar.getMax() ) {
+            sendProgressBar.setVisibility(View.INVISIBLE);
+            sendProgressBar.setMax(0);
+            progressBarStatus = 0;
+            reconnectCheckBox.setEnabled(true);
+        }
+        progressBarHandler.post(new Runnable() {
+            public void run() {
+                ObjectAnimator animation = ObjectAnimator.ofInt(sendProgressBar, "progress", progressBarStatus);
+                animation.setDuration(1000);
+                animation.setInterpolator(new DecelerateInterpolator());
+                animation.start();
+//                sendProgressBar.setProgress(progressBarStatus);
+            }
+        });
+    }
+
+    public void setMaxProgressBar(int max) {
+        sendProgressBar.setMax(max);
+    }
+
+    public void updateMaxProgressBar(int max) {
+        sendProgressBar.setMax(sendProgressBar.getMax() + max);
+    }
+
+    public void checkPermissionsAndStartSearching() {
         if (!getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_BLUETOOTH_LE)) {
             Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT)
@@ -175,47 +229,17 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                     new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                     PERMISSION_REQUEST_EXTERNAL_STORAGE);
         }
+        manager = (LocationManager) getSystemService( Context.LOCATION_SERVICE );
         if (!mBluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
-        final LocationManager manager = (LocationManager) getSystemService( Context.LOCATION_SERVICE );
-
         if ( !manager.isProviderEnabled( LocationManager.GPS_PROVIDER ) ) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Location Services Not Active");
-            builder.setMessage("Please enable Location Services and GPS!");
-            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface dialogInterface, int i) {
-                    // Show location settings when the user acknowledges the alert dialog
-                    locationSettingsIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                    startActivityForResult(locationSettingsIntent, REQUEST_ENABLE_GPS);
-//
-                }
-            });
-            Dialog alertDialog = builder.create();
-            alertDialog.setCanceledOnTouchOutside(false);
-            alertDialog.show();
+            new LocationGPSManager(googleApiClient).requestGpsFromSettingsApi();
         }
 
-        if ( manager.isProviderEnabled( LocationManager.GPS_PROVIDER ) &&
-                mBluetoothAdapter.isEnabled() &&
-
-                ContextCompat.checkSelfPermission(MainActivity.this,
-                        Manifest.permission.ACCESS_COARSE_LOCATION)
-                        == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(MainActivity.this,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        == PackageManager.PERMISSION_GRANTED) {
-            findDevices();
-        }
-    }
-
-    private void restartActivity() {
-        Intent intent = MainActivity.instance.getIntent();
-        MainActivity.instance.finish();
-        startActivity(intent);
+        startFindDevices();
     }
 
     private void setListeners() {
@@ -223,6 +247,20 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 selectItemFromDrawer(position);
+            }
+        });
+
+        reconnectCheckBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            ConnectionRefresher connectionRefresher = new ConnectionRefresher();
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if(isChecked) {
+                    connectionRefresher.start();
+                    mDrawerLayout.closeDrawer(mDrawerPane);
+                }
+                else {
+                    connectionRefresher.stop();
+                }
             }
         });
     }
@@ -238,14 +276,22 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
         if (position != -1) {
             mDrawerList.setItemChecked(position, true);
-//            instance.setTitle(instance.mNavItems.get(position).mTitle);
+        }
+
+        switch (position) {
+            case 0:
+                Intent settingIntent = new Intent(MainActivity.this, SettingsActivity.class);
+                startActivity(settingIntent);
+                break;
+            default:
+                break;
         }
         // Close the drawer
         mDrawerLayout.closeDrawer(mDrawerPane);
     }
 
     private void addMenuItems() {
-        mNavItems.add(new NavItem("AAA", "aaaaaa", R.mipmap.ic_launcher));
+        mNavItems.add(new NavItem("Settings", "Application settings", R.mipmap.ic_launcher));
         mNavItems.add(new NavItem("BBB", "bbbbbb", R.mipmap.ic_launcher));
         mNavItems.add(new NavItem("CCC", "cccccc", R.mipmap.ic_launcher));
         mNavItems.add(new NavItem("DDD", "dddddd", R.mipmap.ic_launcher));
@@ -267,15 +313,16 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     // permission was granted, yay!
-                    coarseLocFlag = true;
-                    startFindDevices(coarseLocFlag, storageFlag);
+                    if(!searchStarted) {
+                        searchStarted = true;
+                        startFindDevices();
+                    }
                 } else {
 
-
-                    if (Build.VERSION.SDK_INT >= 23) {
+                    if (isAndroidApi(23)) {
                         this.finishAffinity();
                     }
-                    // permission denied, close app immediately - android 6.0 ble no location permissions bug
+                    // permission denied
                 }
                 return;
             }
@@ -286,8 +333,10 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     // permission was granted, yay!
 
-                    storageFlag = true;
-                    startFindDevices(coarseLocFlag, storageFlag);
+                    if(!searchStarted) {
+                        searchStarted = true;
+                        startFindDevices();
+                    }
                 } else {
 
                     if (isAndroidApi(23)) {
@@ -306,17 +355,23 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         return Build.VERSION.SDK_INT >= apiLevel;
     }
 
-    private void startFindDevices(boolean coarseLocationFlag, boolean storageFlag) {
-        if (!isAndroidApi(23)) {
-            coarseLocationFlag = true;
-            storageFlag = true;
-        }
-        if (coarseLocationFlag && storageFlag) {
+    private void startFindDevices() {
+        if ( manager.isProviderEnabled( LocationManager.GPS_PROVIDER ) &&
+                mBluetoothAdapter.isEnabled()
+
+                && ContextCompat.checkSelfPermission(MainActivity.this,
+                Manifest.permission.ACCESS_COARSE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED
+
+                &&  ContextCompat.checkSelfPermission(MainActivity.this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED)
+        {
             findDevices();
         }
     }
 
-    private void findDevices() {
+    public void findDevices() {
         scanLeDevice();
 
         showRoundProcessDialog(MainActivity.this, R.layout.loading_process_dialog_anim);
@@ -392,18 +447,24 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        // User choose not to enable Bluetooth.
-        if (requestCode == REQUEST_ENABLE_BT
-                && resultCode == Activity.RESULT_CANCELED) {
-            finish();
-            return;
-        }
-        if(requestCode == REQUEST_ENABLE_GPS) {
-            //
-        }
 
-        startFindDevices(coarseLocFlag, storageFlag);
-//        findDevices();
+        if(requestCode == REQUEST_CHECK_SETTINGS || requestCode == REQUEST_ENABLE_BT) {
+            switch (resultCode) {
+                case Activity.RESULT_OK:
+                    if(!searchStarted) {
+                        searchStarted = true;
+                        startFindDevices();
+                    }
+                    break;
+                case Activity.RESULT_CANCELED:
+                    this.finish();
+                    break;
+                default:
+                    break;
+            }
+        }
+//        startFindDevices(coarseLocFlag, storageFlag);
+
         super.onActivityResult(requestCode, resultCode, data);
     }
 
@@ -419,6 +480,38 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         return polylines;
     }
 
+    public Location getMyLocation() {
+        return myLocation;
+    }
+
+    public List<SensorConfigData> getSensorConfigDatas() {
+        return sensorConfigDatas;
+    }
+
+    public void setSensorConfigDatas(List<SensorConfigData> sensorConfigDatas) {
+        this.sensorConfigDatas = sensorConfigDatas;
+    }
+
+    public ChartData getData() {
+        return data;
+    }
+
+    public void setData(ChartData data) {
+        this.data = data;
+    }
+
+    public void addData(ChartData data) {
+        List<ThingSpeakData> existingList = this.data.getThingSpeakDataList();
+//        if(existingList == null) {
+//            this.data = data;
+//            return;
+//        }
+        List<ThingSpeakData> listToAdd = data.getThingSpeakDataList();
+        List<ThingSpeakData> newList = new ArrayList<>(existingList);
+        newList.addAll(listToAdd);
+        this.data.setThingSpeakDataList(newList);
+    }
+
     private void preStartForLocation() {
         if (googleApiClient == null) {
             googleApiClient = new GoogleApiClient.Builder(this)
@@ -430,31 +523,9 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
-    private void setMarkerByMyLocation(String title) {
+    private void setMyLocation() {
         myLocation = LocationServices.FusedLocationApi.getLastLocation(
                 googleApiClient);
-
-        LatLng latLng = new LatLng(51.0902923, 17.0141853);
-        LatLng latLng2 = new LatLng(51.0913923, 17.0143853);
-        LatLng latLng3 = new LatLng(51.0911923, 17.0144853);
-        LatLng latLng4 = new LatLng(51.0912923, 17.0145853);
-        LatLng latLng5 = new LatLng(51.0913923, 17.0142853);
-        if (myLocation != null) {
-            System.out.println(String.valueOf(myLocation.getLatitude()));
-            System.out.println(String.valueOf(myLocation.getLongitude()));
-            latLng = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
-        }
-
-        MarkerBuilder markerBuilder = new MarkerBuilder();
-
-        markerBuilder.add(latLng, title);
-        markerBuilder.add(latLng2, title + "2");
-
-        markerBuilder.addLine(latLng, latLng2, Color.BLUE);
-
-        markerBuilder.addCurveLine(Arrays.asList(latLng, latLng3, latLng4, latLng5));
-
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
     }
 
     @Override
@@ -475,14 +546,30 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if(mMap != null && currCameraPosition != null) {
+            mMap.moveCamera(CameraUpdateFactory.newCameraPosition(currCameraPosition));
+            currCameraPosition = null;
+        }
+    }
+
+    @Override
     protected void onStart() {
         googleApiClient.connect();
+        if(mMap != null && currCameraPosition != null) {
+            mMap.moveCamera(CameraUpdateFactory.newCameraPosition(currCameraPosition));
+            currCameraPosition = null;
+        }
         super.onStart();
     }
 
     @Override
     protected void onStop() {
         googleApiClient.disconnect();
+        if(mMap != null) {
+            currCameraPosition = mMap.getCameraPosition();
+        }
         super.onStop();
     }
 
@@ -491,40 +578,17 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
         mMap.getUiSettings().setMapToolbarEnabled(false);
 
-        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
-            @Override
-            public boolean onMarkerClick(Marker marker) {
-                Intent intent = new Intent(MainActivity.this, SensorActivity.class);
-                intent.putExtra(CHANNEL_ID_NAME, 252240 + "");
-                intent.putExtra(API_KEY_NAME, "OJZ2HLXTJ2Y75OVN");
-                intent.putExtra(SENSOR_NAME, marker.getTitle());
-                startActivity(intent);
-                return false;
-            }
-        });
 
-        mMap.setOnPolylineClickListener(new GoogleMap.OnPolylineClickListener() {
-            @Override
-            public void onPolylineClick(Polyline polyline) {
-                Log.i(getClass().toString(), "Polyline clicked!");
-            }
-        });
-
-
-        checkPermissionsAndStartSearching();
-
-
-
+        mMap.setInfoWindowAdapter(new MyInfoWindowAdapter(MainActivity.this));
+        if(InternetChecker.isOnline())
+            new GithubReader().execute();
+        else
+            checkPermissionsAndStartSearching();
     }
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-//
-//        myLocation = LocationServices.FusedLocationApi.getLastLocation(
-//                googleApiClient);
-
-        setMarkerByMyLocation("Czujnik Wroclaw");
-
+        setMyLocation();
     }
 
     @Override
@@ -539,13 +603,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onLocationChanged(Location location) {
-//        if (location.hasAccuracy()) {
-//            if (location.getAccuracy() < 30) {
-//                LatLng wroclaw = new LatLng(location.getLongitude(), location.getLatitude());
-//                new MarkerBuilder().add(wroclaw.longitude, wroclaw.latitude, "Czujnik Wroclaw");
-//                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(wroclaw, 15));
-//            }
-//        }
+        myLocation = location;
+        Log.i("LocationChanged!", location.getLongitude() + " " + location.getLatitude());
     }
 }
-

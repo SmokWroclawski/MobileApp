@@ -23,13 +23,17 @@ public class ThingSpeakSender {
 
 //    https://api.thingspeak.com/update?api_key=PRKO5DA2XEW48J8K&field1=5&long=51.490664&location=true&lat=28.375852
 
-    private final static String API_KEY = "PRKO5DA2XEW48J8K";
-    private final static String BASE_ADDRESS_URL = "https://api.thingspeak.com/update?";
+    private String writeApiKey;// = "PRKO5DA2XEW48J8K";
+    private final String BASE_ADDRESS_URL = "https://api.thingspeak.com/update?";
     private volatile boolean done = false;
     private final AtomicInteger returnCode = new AtomicInteger(-2);
 
     private OkHttpClient okHttpClient;
     private Request request;
+
+    public ThingSpeakSender(String writeApiKey) {
+        this.writeApiKey = writeApiKey;
+    }
 
     /**
      * Send data from WeatherData object to Thingspeak
@@ -42,16 +46,19 @@ public class ThingSpeakSender {
         Request.Builder builder = new Request.Builder();
         StringBuilder fields = new StringBuilder();
 
-        for (int i = 0; i < WeatherData.fieldNames.size() - 1; i++) {
+        for (int i = 0; i < WeatherData.fieldNames.size() - 3; i++) {
             fields.append("&")
                     .append("field")
                     .append(i + 1)
                     .append("=")
                     .append(weatherData.getValuesAsList().get(i));
         } //WeatherData.fieldNames.get(i)
+        fields.append("&long=").append(weatherData.getLongtitude())
+                .append("&lat=").append(weatherData.getLatitude())
+                .append("&location=true");
         fields.append("&created_at=").append(weatherData.getTimeStamp());
-        System.out.println(BASE_ADDRESS_URL + "api_key=" + API_KEY + fields);
-        request = builder.url( BASE_ADDRESS_URL + "api_key=" + API_KEY + fields).build();
+        System.out.println(BASE_ADDRESS_URL + "api_key=" + writeApiKey + fields);
+        request = builder.url( BASE_ADDRESS_URL + "api_key=" + writeApiKey + fields).build();
 
         setCallBack();
 

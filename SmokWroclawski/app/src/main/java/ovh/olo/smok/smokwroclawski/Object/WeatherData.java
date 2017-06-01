@@ -10,22 +10,38 @@ public class WeatherData {
     private double pm25;
     private double pm10;
     private double timeStamp;
+    private double longtitude;
+    private double latitude;
 
     public final static List<String> fieldNames =
-            Arrays.asList("temperature", "pressure", "humidity", "pm25", "pm10", "timeStamp");
+            Arrays.asList("temperature", "pressure", "humidity", "pm25", "pm10", "timeStamp", "longtitude", "latitude");
 
 
 
     public WeatherData() {
     }
 
-    public WeatherData(double temperature, double pressure, double humidity, double pm25, double pm10, double timeStamp) {
+    public WeatherData(double temperature, double pressure, double humidity,
+                       double pm25, double pm10, double timeStamp) {
         this.temperature = temperature;
         this.pressure = pressure;
         this.humidity = humidity;
         this.pm25 = pm25;
         this.pm10 = pm10;
         this.timeStamp = timeStamp;
+    }
+
+    public WeatherData(double temperature, double pressure, double humidity,
+                       double pm25, double pm10, double timeStamp,
+                       double longtitude, double latitude) {
+        this.temperature = temperature;
+        this.pressure = pressure;
+        this.humidity = humidity;
+        this.pm25 = pm25;
+        this.pm10 = pm10;
+        this.timeStamp = timeStamp;
+        this.longtitude = longtitude;
+        this.latitude = latitude;
     }
 
     public double getTemperature() {
@@ -80,6 +96,22 @@ public class WeatherData {
         return Arrays.asList(getTemperature(), getPressure(), getHumidity(), getPm25(), getPm10(), getTimeStamp());
     }
 
+    public double getLongtitude() {
+        return longtitude;
+    }
+
+    public void setLongtitude(double longtitude) {
+        this.longtitude = longtitude;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
     @Override
     public String toString() {
         return "{" +
@@ -89,6 +121,8 @@ public class WeatherData {
                 "\", \"pm25\":\"" + pm25 +
                 "\", \"pm10\":\"" + pm10 +
                 "\", \"timeStamp\":\"" + timeStamp +
+                "\", \"longtitude\":\"" + longtitude +
+                "\", \"latitude\":\"" + latitude +
                 "\"}";
     }
 }

@@ -16,8 +16,11 @@ import android.widget.Toast;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Exchanger;
 
 import ovh.olo.smok.smokwroclawski.Activity.DeviceActivity;
+import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
+import ovh.olo.smok.smokwroclawski.Activity.SensorActivity;
 import ovh.olo.smok.smokwroclawski.Parser.PacketParser;
 import ovh.olo.smok.smokwroclawski.R;
 import ovh.olo.smok.smokwroclawski.Refresher;
@@ -33,6 +36,7 @@ public class ChatService extends Service {
 
 	private PacketParser packetParser;
 	private SendingQueue sendingQueue;
+
 
 	private final static String MAGIC_WORD = "measure";
 
@@ -65,16 +69,21 @@ public class ChatService extends Service {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			final String action = intent.getAction();
+			try {
+				if (RBLService.ACTION_GATT_DISCONNECTED.equals(action)) {
+					Toast.makeText(getApplicationContext(), R.string.gatt_disconnected, Toast.LENGTH_SHORT).show();
+					stopSelf();
+				} else if (RBLService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+					getGattService(mBluetoothLeService.getSupportedGattService());
 
-			if (RBLService.ACTION_GATT_DISCONNECTED.equals(action)) {
-				Toast.makeText(getApplicationContext(), R.string.gatt_disconnected, Toast.LENGTH_SHORT).show();
-			} else if (RBLService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-				getGattService(mBluetoothLeService.getSupportedGattService());
+					refresher.start();
 
-				refresher.start();
+				} else if (RBLService.ACTION_DATA_AVAILABLE.equals(action)) {
+					displayData(intent.getByteArrayExtra(RBLService.EXTRA_DATA));
+				}
+			} catch (Exception e) {
+				Toast.makeText(MainActivity.instance, "Wystąpił nieznany błąd! Dziękujemy!", Toast.LENGTH_SHORT).show();
 
-			} else if (RBLService.ACTION_DATA_AVAILABLE.equals(action)) {
-				displayData(intent.getByteArrayExtra(RBLService.EXTRA_DATA));
 			}
 		}
 	};
@@ -86,9 +95,12 @@ public class ChatService extends Service {
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		int toReturn = super.onStartCommand(intent, flags, startId);
-
-		mDeviceAddress = intent.getStringExtra(DeviceActivity.EXTRA_DEVICE_ADDRESS);
-		mDeviceName = intent.getStringExtra(DeviceActivity.EXTRA_DEVICE_NAME);
+		try {
+			mDeviceAddress = intent.getStringExtra(DeviceActivity.EXTRA_DEVICE_ADDRESS);
+			mDeviceName = intent.getStringExtra(DeviceActivity.EXTRA_DEVICE_NAME);
+		} catch (Exception ignored) {
+			this.stopSelf();
+		}
 		return toReturn;
 	}
 
@@ -96,15 +108,12 @@ public class ChatService extends Service {
 	public void onCreate() {
 		super.onCreate();
 
-		System.out.println("DEVICE ACTIVTY!");
-
 		refresher = new Refresher(ChatService.this);
 
 		Intent gattServiceIntent = new Intent(this, RBLService.class);
 		bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
 		packetParser = new PacketParser();
-		sendingQueue = new SendingQueue();
 
 		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
 
@@ -149,14 +158,13 @@ public class ChatService extends Service {
 		if (byteArray == null) return;
 
 		String data = new String(byteArray);
-		if(data.equals("error")) {
-//			textViewAnswer.append(mDeviceName + ": " + data + "\n");
-		} else {
+		if(!data.equals("error")) {
 			refresher.stop();
+			sendingQueue = new SendingQueue(mDeviceAddress);
 			sendingQueue.send(packetParser.parsePacket(byteArray));
 
-			this.stopSelf();
 			sendBroadcast();
+			this.stopSelf();
 		}
 	}
 

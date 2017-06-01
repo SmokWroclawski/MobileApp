@@ -1,12 +1,14 @@
 package ovh.olo.smok.smokwroclawski.ThingSpeak;
 
 import android.os.Handler;
-import android.util.Log;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
+import ovh.olo.smok.smokwroclawski.DataChecker;
+import ovh.olo.smok.smokwroclawski.Github.GithubDataWorker;
 import ovh.olo.smok.smokwroclawski.InternetChecker;
 import ovh.olo.smok.smokwroclawski.Object.WeatherData;
 import ovh.olo.smok.smokwroclawski.Worker.FileWorker;
@@ -22,18 +24,19 @@ todo: usuwanie linii z pliku
  * @author Jakub Obacz
  */
 public class SendingQueue {
-    private final static String FILENAME = "SW_WeatherData.log";
-    private final static int SEND_DELAY = 15000;
+    private static String FILENAME;
+    private final static int SEND_DELAY = 16000;
 
     private ThingSpeakSender thingSpeakSender;
     private FileWorker fileWorker;
-    private InternetChecker internetChecker;
 
+    private int lineCount;
 
-    public SendingQueue() {
-        thingSpeakSender = new ThingSpeakSender();
+    public SendingQueue(String macAddress) {
+        thingSpeakSender = new ThingSpeakSender(GithubDataWorker.getWriteApiKey(macAddress));
         fileWorker = new FileWorker();
-        internetChecker = new InternetChecker();
+        FILENAME = "SW_WeatherData_" + macAddress + ".txt";
+
     }
 
 
@@ -44,9 +47,13 @@ public class SendingQueue {
      */
     public void send(WeatherData weatherData) {
         try {
-
             weatherData.setTimeStamp(System.currentTimeMillis()/1000);
-
+            weatherData.setLongtitude(Math.round(
+                    MainActivity.instance.getMyLocation().getLongitude() * 1000d
+                )/1000d);
+            weatherData.setLatitude(Math.round(
+                    MainActivity.instance.getMyLocation().getLatitude() * 1000d
+                )/1000d);
             fileWorker.appendToFile(FILENAME, weatherData.toString());
 
             sendAndDelete();
@@ -56,29 +63,30 @@ public class SendingQueue {
             e.printStackTrace();
         }
     }
-
     /**
      * Reads file and sends data from file
      */
     private void sendAndDelete() {
-        if(!internetChecker.isOnline()) {
+        if(!InternetChecker.isOnline()) {
             System.out.println("No Internet Connection!");
             return;
         }
-
         final AtomicInteger counter = new AtomicInteger(0);
         List<WeatherData> weatherDatas = null;
 
         try {
+            lineCount = fileWorker.getLineCount(FILENAME);
+
             weatherDatas = fileWorker.readFile(FILENAME);
             if(weatherDatas.isEmpty()) return;
 
             int delay = 0;
-            for (final WeatherData weatherData : weatherDatas) {
+            MainActivity.instance.updateMaxProgressBar(lineCount);
+            for (WeatherData weatherData : weatherDatas) {
+                System.out.println(delay);
                 sendWithDelay(weatherData, delay, counter);
                 delay += SEND_DELAY;
             }
-            Log.i(SendingQueue.class.toString(), "All sent!");
         } catch (IOException e) {
             //todo: nie mozna przeczytac pliku!
             e.printStackTrace();
@@ -92,15 +100,22 @@ public class SendingQueue {
      * @param delay         delay value
      * @param counter       line of file to remove
      */
-    private void sendWithDelay(final WeatherData weatherData, int delay,
-                                final AtomicInteger counter) {
-        Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
+    private void sendWithDelay(final WeatherData weatherData, final int delay,
+                               final AtomicInteger counter) {
+
+        final Handler handler = new Handler();
+        handler.postDelayed(
+                new Runnable() {
             @Override
             public void run() {
-                int responseBodyCode = thingSpeakSender.send(weatherData);
-                System.out.println("Kod:" + responseBodyCode);
-                if(responseBodyCode > 0) {
+                MainActivity.instance.updateProgressBar();
+                int responseBodyCode = 0;
+                boolean isCorrectData = DataChecker.isCorrect(weatherData);
+                if(isCorrectData) {
+                    responseBodyCode = thingSpeakSender.send(weatherData);
+                    System.out.println("Kod:" + responseBodyCode);
+                }
+                if(responseBodyCode > 0 || !isCorrectData) {
                     try {
                         fileWorker.removeLineFromFile(FILENAME, counter.get());
                     } catch (IOException e) {
@@ -112,5 +127,38 @@ public class SendingQueue {
                 }
             }
         }, delay);
+    }
+
+    private void sendListWithDelay(final List<WeatherData> weatherDatas,
+                               final AtomicInteger counter) {
+        final AtomicInteger weatherDataCounter = new AtomicInteger(0);
+        final Handler handler = new Handler();
+        handler.postDelayed(
+//        scheduler.schedule(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if(weatherDataCounter.get() >= weatherDatas.size()) return;
+                        MainActivity.instance.updateProgressBar();
+                        int responseBodyCode = 0;
+                        boolean isCorrectData = DataChecker.isCorrect(weatherDatas.get(weatherDataCounter.get()));
+                        if(isCorrectData) {
+                            responseBodyCode = thingSpeakSender.send(weatherDatas.get(weatherDataCounter.get()));
+                            System.out.println("Kod:" + responseBodyCode);
+                        }
+                        if(responseBodyCode > 0 || !isCorrectData) {
+                            try {
+                                fileWorker.removeLineFromFile(FILENAME, counter.get());
+                            } catch (IOException e) {
+                                //todo: nie mozna usunac danych z pliku!
+                                e.printStackTrace();
+                            }
+                        } else {
+                            counter.incrementAndGet();
+                        }
+                        weatherDataCounter.incrementAndGet();
+                        handler.postDelayed(this, SEND_DELAY);
+                    }
+                }, SEND_DELAY); //);//, TimeUnit.MILLISECONDS
     }
 }

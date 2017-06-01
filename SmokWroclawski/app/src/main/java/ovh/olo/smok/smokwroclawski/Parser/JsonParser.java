@@ -56,6 +56,12 @@ public class JsonParser {
                                 )),
                                 numberParser.parseDouble(json.getString(
                                         WeatherData.fieldNames.get(5)
+                                )),
+                                numberParser.parseDouble(json.getString(
+                                        WeatherData.fieldNames.get(6)
+                                )),
+                                numberParser.parseDouble(json.getString(
+                                        WeatherData.fieldNames.get(7)
                                 ))
                         )
                 );

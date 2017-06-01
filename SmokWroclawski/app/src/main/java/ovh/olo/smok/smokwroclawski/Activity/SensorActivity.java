@@ -1,28 +1,34 @@
 package ovh.olo.smok.smokwroclawski.Activity;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.view.View;
 import android.webkit.WebView;
 import android.widget.Button;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.maps.model.LatLng;
+
 import java.util.Arrays;
+import java.util.List;
 
 import ovh.olo.smok.smokwroclawski.InternetChecker;
+import ovh.olo.smok.smokwroclawski.Maps.MarkerManager;
 import ovh.olo.smok.smokwroclawski.R;
+import ovh.olo.smok.smokwroclawski.ThingSpeak.ChartData;
+import ovh.olo.smok.smokwroclawski.ThingSpeak.ChartDrawer;
 import ovh.olo.smok.smokwroclawski.ThingSpeak.ThingSpeakReceiver;
-
-/**
- * Created by Michal on 2017-05-08.
- */
 
 public class SensorActivity extends Activity {
 
     private TextView sensorName;
+    private TextView measureCount;
+    private SeekBar measureCountSeekBar;
     private WebView chart1;
     private WebView chart2;
     private WebView chart3;
@@ -30,8 +36,14 @@ public class SensorActivity extends Activity {
     private WebView chart5;
     private Button okButton;
 
+    private ThingSpeakReceiver receiver;
+    private List<WebView> webViewList;
 
-    public static SensorActivity instance;
+    private int numberOfPoints = 40;
+
+    private LatLng latLngOfSensor;
+
+    public static SensorActivity instance = null;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -40,7 +52,6 @@ public class SensorActivity extends Activity {
         setContentView(R.layout.activity_sensor);
         instance = SensorActivity.this;
 
-        Intent intent = getIntent();
 
         chart1 = (WebView) findViewById(R.id.chart1);
         chart2 = (WebView) findViewById(R.id.chart2);
@@ -48,7 +59,11 @@ public class SensorActivity extends Activity {
         chart4 = (WebView) findViewById(R.id.chart4);
         chart5 = (WebView) findViewById(R.id.chart5);
         sensorName = (TextView) findViewById(R.id.sensorName);
+        measureCount = (TextView) findViewById(R.id.measureCount);
+        measureCountSeekBar = (SeekBar) findViewById(R.id.measureCountSeekBar);
         okButton = (Button) findViewById(R.id.okButton);
+
+        measureCountSeekBar.setProgress(numberOfPoints);
 
         okButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -57,25 +72,69 @@ public class SensorActivity extends Activity {
             }
         });
 
-        InternetChecker internetChecker = new InternetChecker();
-        if(!internetChecker.isOnline()) {
+        webViewList = Arrays.asList(chart1, chart2, chart3, chart4, chart5);
+
+        latLngOfSensor = new LatLng(
+                getIntent().getDoubleExtra(MarkerManager.DATA_LATITUDE, 0),
+                getIntent().getDoubleExtra(MarkerManager.DATA_LONGTITUDE, 0)
+                );
+
+        if(!InternetChecker.isOnline()) {
             Toast.makeText(MainActivity.instance, "Required internet access!", Toast.LENGTH_LONG).show();
             this.finish();
         } else {
-
-            ThingSpeakReceiver receiver = new ThingSpeakReceiver(
-                    Long.parseLong(intent.getStringExtra(MainActivity.CHANNEL_ID_NAME)),
-                    intent.getStringExtra(MainActivity.API_KEY_NAME));
-            receiver.run(Arrays.asList(chart1, chart2, chart3, chart4, chart5));
-
-            sensorName.setText(intent.getStringExtra(MainActivity.SENSOR_NAME));
+            setListeners();
+            receiveDataAndDrawChart();
         }
+
+    }
+
+    private void setListeners() {
+        measureCountSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            int MIN = 2;
+            Intent intent = getIntent();
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress >= MIN) {
+                    numberOfPoints = progress;
+                    measureCount.setText("Measure count: " + numberOfPoints);
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                new ChartDrawer().drawAllCharts(
+                        (ChartData)intent.getParcelableExtra(MarkerManager.DATA_FROM_SENSOR),
+                        webViewList,
+                        numberOfPoints,
+                        latLngOfSensor
+                );
+            }
+        });
+    }
+
+    private void receiveDataAndDrawChart() {
+        Intent intent = getIntent();
+
+        new ChartDrawer().drawAllCharts(
+                (ChartData)intent.getParcelableExtra(MarkerManager.DATA_FROM_SENSOR),
+                webViewList,
+                numberOfPoints,
+                latLngOfSensor
+        );
+
+        sensorName.setText(intent.getStringExtra(MainActivity.SENSOR_NAME));
+        measureCount.setText("Measure count: " + numberOfPoints);
 
     }
 
     @Override
     public void onBackPressed() {
         this.finish();
-//        super.onBackPressed();
     }
 }

@@ -18,7 +18,7 @@ public class InternetChecker {
      *
      * @return  true if Internet connection is available, false otherwise
      */
-    public boolean isOnline() {
+    public static boolean isOnline() {
         ConnectivityManager cm = (ConnectivityManager) MainActivity
                 .instance.getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo netInfo = cm.getActiveNetworkInfo();
