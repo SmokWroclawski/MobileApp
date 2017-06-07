@@ -7,11 +7,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
-import android.view.Window;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -20,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 
 import ovh.olo.smok.smokwroclawski.InternetChecker;
-import ovh.olo.smok.smokwroclawski.Maps.MarkerManager;
 import ovh.olo.smok.smokwroclawski.Object.SensorConfigData;
 import ovh.olo.smok.smokwroclawski.R;
 import ovh.olo.smok.smokwroclawski.Service.ChatService;
@@ -44,13 +41,17 @@ public class DeviceActivity extends Activity {
 	private int devicesCount = 0;
 	private int sensorDevicesCount = 0;
 
-	public static ProgressDialog progressDialog;
+	private ProgressDialog progressDialog;
+
+	public static DeviceActivity instance;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
 		setTitle("Devices");
+
+		instance = DeviceActivity.this;
 
 		registerReceiver(bReceiver, new IntentFilter("message"));
 
@@ -59,6 +60,7 @@ public class DeviceActivity extends Activity {
 		if (devices.isEmpty()) {
 			Toast.makeText(getApplicationContext(), R.string.no_devices_found, Toast.LENGTH_SHORT).show();
 			runAndDestory();
+			return;
 		}
 
 		for (BluetoothDevice device : devices) {
@@ -73,10 +75,13 @@ public class DeviceActivity extends Activity {
 		devicesCount = listItems.size();
 		Log.i("Devices count: ", listItems.size() + "");
 
-		if (devicesCount == 0) runAndDestory();
 		progressDialog = ProgressDialog.show(MainActivity.instance, "", "Processing...", true);
 		MainActivity.instance.tabuList.clear();
 		connectNext();
+	}
+
+	public ProgressDialog getProgressDialog() {
+		return progressDialog;
 	}
 
 	private void connectNext() {
@@ -128,7 +133,6 @@ public class DeviceActivity extends Activity {
 
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			System.out.println("OnReceive!");
 			System.out.println(counter + "|" + devicesCount);
 			System.out.println(sensorCounter + "|" + sensorDevicesCount);
 			if(sensorCounter < sensorDevicesCount) {
@@ -142,41 +146,47 @@ public class DeviceActivity extends Activity {
 
 	public static volatile Boolean done = false;
 
-//	private ProgressDialog pd;
 	private void runAndDestory() {
-		System.out.println("Unregister!");
-		unregisterReceiver(bReceiver);
-
-
 		if(!InternetChecker.isOnline()) {
-			progressDialog.dismiss();
+			if(progressDialog != null)
+				progressDialog.dismiss();
 			this.finish();
+
+		}
+		if(progressDialog == null) {
+			progressDialog = ProgressDialog.show(MainActivity.instance, "", "Processing...", true);
 		}
 
 		progressDialog.setMessage("Receiving and analysing data...");
-//		pd = ProgressDialog.show(MainActivity.instance, "", "Receiving and analysing data...",true);
+		new Handler().post(new Runnable() {
 
-		for (SensorConfigData scd : MainActivity.instance.getSensorConfigDatas()) {
-//			System.out.println(scd);
-			ThingSpeakReceiver receiver = new ThingSpeakReceiver(
-					Integer.parseInt(scd.getChannelId()),
-					scd.getReadAPIkey()
-			);
-			receiver.run();
-			while (true) {
-				if (done) {
-					break;
+			@Override
+			public void run() {
+				for (SensorConfigData scd : MainActivity.instance.getSensorConfigDatas()) {
+					ThingSpeakReceiver receiver = new ThingSpeakReceiver(
+							Integer.parseInt(scd.getChannelId()),
+							scd.getReadAPIkey()
+					);
+					receiver.run();
+					while (true) {
+						if (done) {
+							break;
+						}
+					}
+
+					done = false;
 				}
 			}
-
-			done = false;
-		}
+		});
 
 		this.finish();
 	}
 
 	@Override
 	protected void onDestroy() {
+		try {
+			unregisterReceiver(bReceiver);
+		} catch (Exception ignored) {}
 
 		super.onDestroy();
 	}

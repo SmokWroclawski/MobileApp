@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
@@ -21,6 +22,8 @@ import java.util.concurrent.Exchanger;
 import ovh.olo.smok.smokwroclawski.Activity.DeviceActivity;
 import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
 import ovh.olo.smok.smokwroclawski.Activity.SensorActivity;
+import ovh.olo.smok.smokwroclawski.Github.GithubReader;
+import ovh.olo.smok.smokwroclawski.InternetChecker;
 import ovh.olo.smok.smokwroclawski.Parser.PacketParser;
 import ovh.olo.smok.smokwroclawski.R;
 import ovh.olo.smok.smokwroclawski.Refresher;
@@ -72,7 +75,24 @@ public class ChatService extends Service {
 			try {
 				if (RBLService.ACTION_GATT_DISCONNECTED.equals(action)) {
 					Toast.makeText(getApplicationContext(), R.string.gatt_disconnected, Toast.LENGTH_SHORT).show();
+
+					if(DeviceActivity.instance.getProgressDialog() != null)
+						DeviceActivity.instance.getProgressDialog().dismiss();
+
 					stopSelf();
+
+					Handler handler = new Handler();
+					handler.post(new Runnable() {
+						@Override
+						public void run() {
+							MainActivity.instance.clearAllDatas();
+							if(InternetChecker.isOnline())
+								new GithubReader().execute();
+							else
+								MainActivity.instance.checkPermissionsAndStartSearching();
+						}
+					});
+
 				} else if (RBLService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
 					getGattService(mBluetoothLeService.getSupportedGattService());
 
@@ -128,7 +148,6 @@ public class ChatService extends Service {
 
 	@Override
 	public void onDestroy() {
-		System.out.println("ONDESTROY!");
 		super.onDestroy();
 		close();
 		this.stopSelf();
@@ -154,12 +173,13 @@ public class ChatService extends Service {
 		mBluetoothLeService.writeCharacteristic(characteristic);
 	}
 
-	private void displayData(byte[] byteArray) {
+	private void displayData(final byte[] byteArray) {
 		if (byteArray == null) return;
 
 		String data = new String(byteArray);
 		if(!data.equals("error")) {
 			refresher.stop();
+
 			sendingQueue = new SendingQueue(mDeviceAddress);
 			sendingQueue.send(packetParser.parsePacket(byteArray));
 

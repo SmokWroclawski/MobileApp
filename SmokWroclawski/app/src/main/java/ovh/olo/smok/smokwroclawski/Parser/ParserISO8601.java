@@ -26,7 +26,7 @@ public class ParserISO8601 {
         } catch (ParseException e) {
             e.printStackTrace();
         }
-        sdf.setTimeZone(TimeZone.getTimeZone("GMT+1:00"));
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT+2:00"));
         String formattedDate = sdf.format(date);
         return formattedDate;
 //        return iso8601string.replace("T", " ").replace("Z", "");

@@ -1,15 +1,6 @@
 package ovh.olo.smok.smokwroclawski.ThingSpeak;
 
-import android.app.ProgressDialog;
-import android.content.Intent;
-import android.widget.Toast;
-
-import com.google.android.gms.maps.CameraUpdate;
-import com.google.android.gms.maps.CameraUpdateFactory;
-import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
-import com.google.android.gms.maps.model.Marker;
 import com.squareup.okhttp.Callback;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
@@ -20,14 +11,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 
 import ovh.olo.smok.smokwroclawski.Activity.DeviceActivity;
 import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
-import ovh.olo.smok.smokwroclawski.Activity.SensorActivity;
 import ovh.olo.smok.smokwroclawski.InternetChecker;
-import ovh.olo.smok.smokwroclawski.Maps.MarkerFactory;
-import ovh.olo.smok.smokwroclawski.Maps.MarkerManager;
+import ovh.olo.smok.smokwroclawski.Markers.MarkerFactory;
+import ovh.olo.smok.smokwroclawski.Markers.MarkerManager;
 import ovh.olo.smok.smokwroclawski.Parser.ParserISO8601;
 
 public class ThingSpeakReceiver {
@@ -87,7 +76,9 @@ public class ThingSpeakReceiver {
                                                 tsData.getLongtitude()
                                         );
                                         markerFactory.add(latLng,
-                                                "" + channelId,
+                                                "(" + Math.round(latLng.latitude * 1000d ) / 1000d + ", "
+                                                        + Math.round(latLng.longitude * 1000d ) / 1000d + ")",
+
                                                 "Last measure ( "
                                                         + ParserISO8601.toDate(data.getLastDate(latLng)) +
                                                         " ): \n" +
@@ -95,7 +86,10 @@ public class ThingSpeakReceiver {
                                                 "Humidity: " + data.getLastHumidity(latLng) + "\n" +
                                                 "Pressure: " + data.getLastPressure(latLng) + "\n" +
                                                 "PM 2.5: " + data.getLastPM25(latLng) + "\n" +
-                                                "PM 10: " + data.getLastPM10(latLng));
+                                                "PM 10: " + data.getLastPM10(latLng),
+
+                                                (int) data.getAvgPms(latLng)
+                                        );
                                     }
 
                                     MarkerManager.setUpMarkersListeners();
@@ -103,7 +97,7 @@ public class ThingSpeakReceiver {
                                     MarkerManager.animate();
                                 }
                             });
-                            DeviceActivity.progressDialog.dismiss();
+                            DeviceActivity.instance.getProgressDialog().dismiss();
                             DeviceActivity.done = true;
                         } catch (JSONException e) {
                             e.printStackTrace();

@@ -133,38 +133,33 @@ public class FileWorker {
      * @param lineNumber    Number of line to delete
      */
     public void removeLineFromFile(String file, int lineNumber) throws IOException {
-        rwlock.readLock().lock();
-        try {
-            File inFile = new File(Environment.getExternalStorageDirectory() +  "/" + file);
-            if (!inFile.isFile()) {
-                System.out.println("File not found!");
-                return;
-            }
-            File tempFile = new File(inFile.getAbsolutePath() + ".tmp");
-            BufferedReader br = new BufferedReader(new FileReader(inFile));
-            PrintWriter pw = new PrintWriter(new FileWriter(tempFile));
-            String line ;
-            int counter = 0;
-            while ((line = br.readLine()) != null) {
-                if (counter != lineNumber) {
-                    pw.println(line);
-                    pw.flush();
-                }
-                counter++;
-            }
-            pw.close();
-            br.close();
-
-            if (!inFile.delete()) {
-                System.out.println("Could not delete file");
-                return;
-            }
-
-            if (!tempFile.renameTo(inFile))
-                System.out.println("Could not rename file");
-        } finally {
-            rwlock.readLock().unlock();
+        File inFile = new File(Environment.getExternalStorageDirectory() +  "/" + file);
+        if (!inFile.isFile()) {
+            System.out.println("File not found!");
+            return;
         }
+        File tempFile = new File(inFile.getAbsolutePath() + ".tmp");
+        BufferedReader br = new BufferedReader(new FileReader(inFile));
+        PrintWriter pw = new PrintWriter(new FileWriter(tempFile));
+        String line ;
+        int counter = 0;
+        while ((line = br.readLine()) != null) {
+            if (counter != lineNumber) {
+                pw.println(line);
+                pw.flush();
+            }
+            counter++;
+        }
+        pw.close();
+        br.close();
+
+        if (!inFile.delete()) {
+            System.out.println("Could not delete file");
+            return;
+        }
+
+        if (!tempFile.renameTo(inFile))
+            System.out.println("Could not rename file");
     }
 
     public int getLineCount(String file) throws IOException {

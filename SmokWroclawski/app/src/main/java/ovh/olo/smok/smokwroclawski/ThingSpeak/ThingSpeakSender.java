@@ -57,7 +57,6 @@ public class ThingSpeakSender {
                 .append("&lat=").append(weatherData.getLatitude())
                 .append("&location=true");
         fields.append("&created_at=").append(weatherData.getTimeStamp());
-        System.out.println(BASE_ADDRESS_URL + "api_key=" + writeApiKey + fields);
         request = builder.url( BASE_ADDRESS_URL + "api_key=" + writeApiKey + fields).build();
 
         setCallBack();
@@ -101,7 +100,7 @@ public class ThingSpeakSender {
                     }
                 } else {
                     Log.e(this.getClass().toString(), "Not Success - code : " + response.code());
-                    returnCode.getAndSet(response.code());
+                    returnCode.getAndSet(-1); //response.code()
                     done = true;
                 }
             }

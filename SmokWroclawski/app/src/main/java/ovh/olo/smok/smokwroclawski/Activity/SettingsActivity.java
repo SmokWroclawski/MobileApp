@@ -1,70 +1,112 @@
 package ovh.olo.smok.smokwroclawski.Activity;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.app.Activity;
-import android.support.v4.widget.DrawerLayout;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ListView;
-import android.widget.RelativeLayout;
+import android.widget.Button;
+import android.widget.SeekBar;
+import android.widget.TextClock;
+import android.widget.TextView;
 
-import java.util.ArrayList;
-
-import ovh.olo.smok.smokwroclawski.Adapter.DrawerListAdapter;
-import ovh.olo.smok.smokwroclawski.Adapter.SettingsListAdapter;
-import ovh.olo.smok.smokwroclawski.Object.NavItem;
-import ovh.olo.smok.smokwroclawski.Object.SettingsItem;
+import ovh.olo.smok.smokwroclawski.ConnectionRefresher;
 import ovh.olo.smok.smokwroclawski.R;
 
 public class SettingsActivity extends Activity {
-    private ListView mSettingsList;
-    private SettingsListAdapter adapter;
-    public ArrayList<SettingsItem> mSettingsItems = new ArrayList<>();
-
+    private SeekBar seekBar;
+    private TextView reconnectMinsCounterTv;
+    private Button okButtonSettings;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        mSettingsList = (ListView) findViewById(R.id.settingsList);
 
-        adapter = new SettingsListAdapter(this, mSettingsItems);
-        mSettingsList.setAdapter(adapter);
+        seekBar = (SeekBar) findViewById(R.id.seekBar2);
+        reconnectMinsCounterTv = (TextView) findViewById(R.id.reconnectMinsCount);
+        okButtonSettings = (Button) findViewById(R.id.okButtonSettings);
 
-        mSettingsList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+
+        setProgressByActualMinsCount();
+
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                selectItemFromSettings(position);
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                switch (progress) {
+                    case 0:
+                        reconnectMinsCounterTv.setText("1 min");
+                        MainActivity.instance.getReconnectCheckBox().setText("Auto reconnect every 1 min");
+                        break;
+                    case 1:
+                        reconnectMinsCounterTv.setText("2 mins");
+                        MainActivity.instance.getReconnectCheckBox().setText("Auto reconnect every 2 mins");
+                        break;
+                    case 2:
+                        reconnectMinsCounterTv.setText("5 mins");
+                        MainActivity.instance.getReconnectCheckBox().setText("Auto reconnect every 5 mins");
+                        break;
+                    case 3:
+                        reconnectMinsCounterTv.setText("10 mins");
+                        MainActivity.instance.getReconnectCheckBox().setText("Auto reconnect every 10 mins");
+                        break;
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                switch (seekBar.getProgress()) {
+                    case 0:
+                        ConnectionRefresher.MINS = 60000;
+                        break;
+                    case 1:
+                        ConnectionRefresher.MINS = 2*60000;
+                        break;
+                    case 2:
+                        ConnectionRefresher.MINS = 5*60000;
+                        break;
+                    case 3:
+                        ConnectionRefresher.MINS = 10*60000;
+                        break;
+                }
             }
         });
 
-        addSettingsItems();
+        okButtonSettings.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
     }
 
-    private void addSettingsItems() {
-        mSettingsItems.add(new SettingsItem("AAA", "aaaaaa"));
-        mSettingsItems.add(new SettingsItem("BBB", "bbbbbb"));
-        mSettingsItems.add(new SettingsItem("CCC", "cccccc"));
-        mSettingsItems.add(new SettingsItem("DDD", "dddddd"));
-        mSettingsItems.add(new SettingsItem("EEE", "eeeeee"));
-        mSettingsItems.add(new SettingsItem("FFF", "ffffff"));
-    }
 
-    private void setSelectedItemId(int position) {
-        adapter.setmSelectedItem(position);
-        adapter.notifyDataSetChanged();
-    }
-
-    private void selectItemFromSettings(int position) {
-        setSelectedItemId(position);
-        //todo: switch case zalezny od kliknietego itemu w menu
-
-        if (position != -1) {
-            mSettingsList.setItemChecked(position, true);
+    public void setProgressByActualMinsCount() {
+        int actualMinCount = ConnectionRefresher.MINS/60000;
+        switch (actualMinCount) {
+            default:
+                seekBar.setProgress(0);
+                reconnectMinsCounterTv.setText("1 min");
+                break;
+            case 2:
+                seekBar.setProgress(1);
+                reconnectMinsCounterTv.setText("2 mins");
+                break;
+            case 5:
+                seekBar.setProgress(2);
+                reconnectMinsCounterTv.setText("5 mins");
+                break;
+            case 10:
+                seekBar.setProgress(3);
+                reconnectMinsCounterTv.setText("10 mins");
+                break;
         }
     }
+
 
     @Override
     public void onBackPressed() {

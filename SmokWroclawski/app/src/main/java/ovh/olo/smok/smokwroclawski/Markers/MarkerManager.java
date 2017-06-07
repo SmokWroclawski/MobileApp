@@ -1,4 +1,4 @@
-package ovh.olo.smok.smokwroclawski.Maps;
+package ovh.olo.smok.smokwroclawski.Markers;
 
 import android.content.Intent;
 import android.widget.Toast;
@@ -9,7 +9,8 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 
-import ovh.olo.smok.smokwroclawski.Activity.DeviceActivity;
+import java.util.ArrayList;
+
 import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
 import ovh.olo.smok.smokwroclawski.Activity.SensorActivity;
 
@@ -61,5 +62,10 @@ public class MarkerManager {
         CameraUpdate cu = CameraUpdateFactory.newLatLngBounds(bounds, padding);
 
         MainActivity.instance.getmMap().animateCamera(cu);
+    }
+
+    public static void clearMarkers() {
+        MainActivity.instance.setMarkers(new ArrayList<Marker>());
+        MainActivity.instance.getmMap().clear();
     }
 }

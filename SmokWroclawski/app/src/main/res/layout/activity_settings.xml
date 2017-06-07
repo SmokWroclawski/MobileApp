@@ -13,11 +13,55 @@
         android:text="Settings"
         android:textSize="30sp" />
 
-    <ListView
-        android:id="@+id/settingsList"
+    <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_alignParentStart="true"
         android:layout_below="@+id/name"
-        android:choiceMode="singleChoice"
-        android:gravity="center"/>
+        android:layout_margin="10dp"
+        android:id="@+id/relativeLayout">
+
+        <Button
+            android:id="@+id/okButtonSettings"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true"
+            android:text="Close" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/scrolViewWithSettings"
+            android:layout_above="@+id/okButtonSettings">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" >
+
+                <TextView
+                    android:id="@+id/reconnectLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Auto-reconnect Settings"
+                    android:textSize="18sp" />
+
+                <SeekBar
+                    android:id="@+id/seekBar2"
+                    android:layout_width="match_parent"
+                    android:max="3"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/reconnectMinsCount"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="right"
+                    android:text="1 min" />
+            </LinearLayout>
+        </ScrollView>
+    </RelativeLayout>
+
+
 </RelativeLayout>

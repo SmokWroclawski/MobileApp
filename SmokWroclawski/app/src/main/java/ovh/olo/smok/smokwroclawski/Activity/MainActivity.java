@@ -21,7 +21,6 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.widget.DrawerLayout;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
@@ -32,6 +31,7 @@ import android.widget.CompoundButton;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import android.support.v4.app.FragmentActivity;
@@ -39,6 +39,7 @@ import android.support.v4.app.FragmentActivity;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -51,6 +52,8 @@ import com.google.android.gms.maps.model.Polyline;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -61,6 +64,7 @@ import ovh.olo.smok.smokwroclawski.ConnectionRefresher;
 import ovh.olo.smok.smokwroclawski.Github.GithubReader;
 import ovh.olo.smok.smokwroclawski.InternetChecker;
 import ovh.olo.smok.smokwroclawski.LocationGPSManager;
+import ovh.olo.smok.smokwroclawski.Markers.MarkerManager;
 import ovh.olo.smok.smokwroclawski.Object.NavItem;
 import ovh.olo.smok.smokwroclawski.Object.SensorConfigData;
 import ovh.olo.smok.smokwroclawski.R;
@@ -71,12 +75,14 @@ import ovh.olo.smok.smokwroclawski.Worker.FileWorker;
 public class MainActivity extends FragmentActivity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
+
     private BluetoothAdapter mBluetoothAdapter;
     private static final int REQUEST_ENABLE_BT = 1;
 
     public static final int REQUEST_CHECK_SETTINGS = 3;
 
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
+    private static final int PERMISSION_REQUEST_FINE_LOCATION = 3;
     private static final int PERMISSION_REQUEST_EXTERNAL_STORAGE = 2;
     private static final long SCAN_PERIOD = 3000;
 
@@ -97,6 +103,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     private Location myLocation;
     private GoogleApiClient googleApiClient;
     private CameraPosition currCameraPosition;
+    private LocationRequest locationRequest;
 
     private ListView mDrawerList;
     private RelativeLayout mDrawerPane;
@@ -106,6 +113,8 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     private volatile boolean searchStarted = false;
 
+    private TextView yourLocation;
+    private TextView timer;
     private CheckBox reconnectCheckBox;
     private ProgressBar sendProgressBar;
     private int progressBarStatus = 0;
@@ -131,12 +140,15 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         instance = MainActivity.this;
 
         data = new ChartData();
+        yourLocation = (TextView) findViewById(R.id.yourLocation);
+        timer = (TextView) findViewById(R.id.timer);
         sendProgressBar = (ProgressBar) findViewById(R.id.sendProgressBar);
         reconnectCheckBox = (CheckBox) findViewById(R.id.reconnectCheckBox);
         getLayoutItems();
 
 
         preStartForLocation();
+        locationRequest = getLocationRequest();
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -151,6 +163,20 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
 
 
+    }
+
+    private LocationRequest getLocationRequest() {
+        LocationRequest locationRequest = LocationRequest.create();
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setInterval(30 * 1000);
+        locationRequest.setFastestInterval(5 * 1000);
+        return locationRequest;
+    }
+
+    public void clearAllDatas() {
+        sensorConfigDatas.clear();
+        data.getThingSpeakDataList().clear();
+        MarkerManager.clearMarkers();
     }
 
     private void handleUncaughtException (Thread thread, Throwable e) throws IOException {
@@ -183,7 +209,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 animation.setDuration(1000);
                 animation.setInterpolator(new DecelerateInterpolator());
                 animation.start();
-//                sendProgressBar.setProgress(progressBarStatus);
             }
         });
     }
@@ -213,6 +238,16 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
             return;
         }
 
+        if (ActivityCompat.checkSelfPermission(MainActivity.this,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
+                    PERMISSION_REQUEST_FINE_LOCATION);
+        } else {
+            mMap.setMyLocationEnabled(true);
+        }
         if (ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.ACCESS_COARSE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -236,7 +271,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         if ( !manager.isProviderEnabled( LocationManager.GPS_PROVIDER ) ) {
-            new LocationGPSManager(googleApiClient).requestGpsFromSettingsApi();
+            new LocationGPSManager(googleApiClient, locationRequest).requestGpsFromSettingsApi();
         }
 
         startFindDevices();
@@ -292,11 +327,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void addMenuItems() {
         mNavItems.add(new NavItem("Settings", "Application settings", R.mipmap.ic_launcher));
-        mNavItems.add(new NavItem("BBB", "bbbbbb", R.mipmap.ic_launcher));
-        mNavItems.add(new NavItem("CCC", "cccccc", R.mipmap.ic_launcher));
-        mNavItems.add(new NavItem("DDD", "dddddd", R.mipmap.ic_launcher));
-        mNavItems.add(new NavItem("EEE", "eeeeee", R.mipmap.ic_launcher));
-        mNavItems.add(new NavItem("FFF", "ffffff", R.mipmap.ic_launcher));
     }
 
     private void getLayoutItems() {
@@ -346,6 +376,25 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 }
                 return;
             }
+
+            case PERMISSION_REQUEST_FINE_LOCATION: {
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // permission was granted, yay!
+                    mMap.setMyLocationEnabled(true);
+                    if(!searchStarted) {
+                        searchStarted = true;
+                        startFindDevices();
+                    }
+                } else {
+
+                    if (isAndroidApi(23)) {
+                        this.finishAffinity();
+                    }
+                    // permission denied
+                }
+                return;
+            }
             // other 'case' lines to check for other
             // permissions this app might request
         }
@@ -371,7 +420,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    public void findDevices() {
+    private void findDevices() {
         scanLeDevice();
 
         showRoundProcessDialog(MainActivity.this, R.layout.loading_process_dialog_anim);
@@ -476,12 +525,20 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         return markers;
     }
 
+    public void setMarkers(List<Marker> markers) {
+        this.markers = markers;
+    }
+
     public List<Polyline> getPolylines() {
         return polylines;
     }
 
     public Location getMyLocation() {
         return myLocation;
+    }
+
+    public TextView getTimer() {
+        return timer;
     }
 
     public List<SensorConfigData> getSensorConfigDatas() {
@@ -500,15 +557,23 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         this.data = data;
     }
 
+    public CheckBox getReconnectCheckBox() {
+        return reconnectCheckBox;
+    }
+
+    public class CustomComparator implements Comparator<ThingSpeakData> {
+        @Override
+        public int compare(ThingSpeakData o1, ThingSpeakData o2) {
+            return o1.getDate().compareToIgnoreCase(o2.getDate());
+        }
+    }
+
     public void addData(ChartData data) {
         List<ThingSpeakData> existingList = this.data.getThingSpeakDataList();
-//        if(existingList == null) {
-//            this.data = data;
-//            return;
-//        }
         List<ThingSpeakData> listToAdd = data.getThingSpeakDataList();
         List<ThingSpeakData> newList = new ArrayList<>(existingList);
         newList.addAll(listToAdd);
+        Collections.sort(newList, new CustomComparator());
         this.data.setThingSpeakDataList(newList);
     }
 
@@ -526,6 +591,12 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     private void setMyLocation() {
         myLocation = LocationServices.FusedLocationApi.getLastLocation(
                 googleApiClient);
+        yourLocation.setText("Lat:" + myLocation.getLatitude() + " Lng: " + myLocation.getLongitude());
+    }
+
+    protected void startLocationUpdates() {
+        LocationServices.FusedLocationApi.requestLocationUpdates(
+                googleApiClient, locationRequest, this);
     }
 
     @Override
@@ -541,8 +612,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
-//        System.exit(0);
     }
 
     @Override
@@ -577,7 +646,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.getUiSettings().setMapToolbarEnabled(false);
-
+        mMap.setMyLocationEnabled(true);
 
         mMap.setInfoWindowAdapter(new MyInfoWindowAdapter(MainActivity.this));
         if(InternetChecker.isOnline())
@@ -589,6 +658,8 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         setMyLocation();
+
+        startLocationUpdates();
     }
 
     @Override
@@ -604,6 +675,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onLocationChanged(Location location) {
         myLocation = location;
-        Log.i("LocationChanged!", location.getLongitude() + " " + location.getLatitude());
+        yourLocation.setText("Lat:" + myLocation.getLatitude() + " Lng: " + myLocation.getLongitude());
     }
 }

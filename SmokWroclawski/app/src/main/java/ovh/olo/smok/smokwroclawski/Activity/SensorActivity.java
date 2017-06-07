@@ -1,7 +1,6 @@
 package ovh.olo.smok.smokwroclawski.Activity;
 
 import android.app.Activity;
-import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -18,11 +17,10 @@ import java.util.Arrays;
 import java.util.List;
 
 import ovh.olo.smok.smokwroclawski.InternetChecker;
-import ovh.olo.smok.smokwroclawski.Maps.MarkerManager;
+import ovh.olo.smok.smokwroclawski.Markers.MarkerManager;
 import ovh.olo.smok.smokwroclawski.R;
 import ovh.olo.smok.smokwroclawski.ThingSpeak.ChartData;
 import ovh.olo.smok.smokwroclawski.ThingSpeak.ChartDrawer;
-import ovh.olo.smok.smokwroclawski.ThingSpeak.ThingSpeakReceiver;
 
 public class SensorActivity extends Activity {
 
@@ -36,10 +34,9 @@ public class SensorActivity extends Activity {
     private WebView chart5;
     private Button okButton;
 
-    private ThingSpeakReceiver receiver;
     private List<WebView> webViewList;
 
-    private int numberOfPoints = 40;
+    private int numberOfPoints = 20;
 
     private LatLng latLngOfSensor;
 
@@ -63,7 +60,7 @@ public class SensorActivity extends Activity {
         measureCountSeekBar = (SeekBar) findViewById(R.id.measureCountSeekBar);
         okButton = (Button) findViewById(R.id.okButton);
 
-        measureCountSeekBar.setProgress(numberOfPoints);
+//        measureCountSeekBar.setProgress(numberOfPoints);
 
         okButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -87,6 +84,13 @@ public class SensorActivity extends Activity {
             receiveDataAndDrawChart();
         }
 
+    }
+
+    public void setMeasureCount(int pointCount) {
+        measureCountSeekBar.setMax(pointCount);
+        if(numberOfPoints > pointCount) numberOfPoints = pointCount;
+        measureCountSeekBar.setProgress(numberOfPoints);
+        measureCount.setText("Measure count: " + numberOfPoints);
     }
 
     private void setListeners() {
@@ -120,16 +124,18 @@ public class SensorActivity extends Activity {
 
     private void receiveDataAndDrawChart() {
         Intent intent = getIntent();
+        ChartData chartData = intent.getParcelableExtra(MarkerManager.DATA_FROM_SENSOR);
+        int count = chartData.getMeasureCount(latLngOfSensor);
+        setMeasureCount(count);
 
         new ChartDrawer().drawAllCharts(
-                (ChartData)intent.getParcelableExtra(MarkerManager.DATA_FROM_SENSOR),
+                chartData,
                 webViewList,
                 numberOfPoints,
                 latLngOfSensor
         );
-
         sensorName.setText(intent.getStringExtra(MainActivity.SENSOR_NAME));
-        measureCount.setText("Measure count: " + numberOfPoints);
+//        measureCount.setText("Measure count: " + numberOfPoints);
 
     }
 

@@ -6,6 +6,7 @@ import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 import com.google.android.gms.maps.model.LatLng;
 
@@ -79,6 +80,7 @@ public class ChartDrawer {
                         "\n" +
                         "function drawExample3() {\n" +
                         "  var options = {\n" +
+                        "    hAxis: {direction: -1}," +
                         "    title: '" + title + "',\n" +
                         "    pointSize: 5,\n" +
                         "    height: 240,\n" +
@@ -95,13 +97,6 @@ public class ChartDrawer {
                         "  \n" +
                         "  var data = google.visualization.arrayToDataTable(" +
                         dataOnChart +
-//                        "[\n" +
-//                        "          ['Year', 'Sales', 'Expenses'],\n" +
-//                        "          ['2004',  1000,      400],\n" +
-//                        "          ['2005',  1170,      460],\n" +
-//                        "          ['2006',  660,       1120],\n" +
-//                        "          ['2007',  1030,      540]\n" +
-//                        "        ]" +
                         ");\n" +
                         "  function drawChart() {\n" +
                         "    chart.draw(data, options);\n" +
@@ -116,7 +111,6 @@ public class ChartDrawer {
                         "\n" +
                         "   \n" +
                         "</body></html>";
-        System.out.println(dataOnChart);
         final AtomicInteger webViewDoneCounter = new AtomicInteger(0);
         webView.post(new Runnable() {
             @Override
@@ -124,17 +118,10 @@ public class ChartDrawer {
                 final ProgressDialog pd = ProgressDialog.show(SensorActivity.instance, "", "Drawing charts...",true);
 
                 WebSettings webSettings = webView.getSettings();
-                webSettings.setMinimumFontSize(18);
-                webSettings.setLoadWithOverviewMode(true);
-                webSettings.setUseWideViewPort(true);
-                webSettings.setBuiltInZoomControls(true);
-                webSettings.setDisplayZoomControls(false);
-                webSettings.setJavaScriptEnabled(true);
 
-                webSettings.setSupportZoom(true);
+
                 webView.setWebChromeClient(new WebChromeClient() {
-
-                    @Override
+                                        @Override
                     public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
                         Log.i("JSMessage", consoleMessage.message());
                         return super.onConsoleMessage(consoleMessage);
@@ -147,6 +134,7 @@ public class ChartDrawer {
                             webViewDoneCounter.incrementAndGet();
                         }
                         if(webViewDoneCounter.get() == 2) { //1 raz kiedy wczyta sie strona, drugi raz kiedy wczyta sie js
+
                             if(pd !=null && pd.isShowing())
                             {
                                 pd.dismiss();
@@ -154,6 +142,17 @@ public class ChartDrawer {
                         }
                     }
                 });
+
+                webSettings.setMinimumFontSize(18);
+                webSettings.setLoadWithOverviewMode(true);
+                webSettings.setUseWideViewPort(true);
+                webSettings.setBuiltInZoomControls(true);
+                webSettings.setDisplayZoomControls(false);
+                webSettings.setJavaScriptEnabled(true);
+                webSettings.setDomStorageEnabled(true);
+                webSettings.setSupportZoom(true);
+
+
                 webView.requestFocusFromTouch();
 
                 webView.loadDataWithBaseURL("file:///android_asset/", html, "text/html", "utf-8", null);

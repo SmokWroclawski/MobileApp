@@ -35,30 +35,20 @@ public class ChartData implements Parcelable {
                 latitude, longtitude));
     }
 
-    public String getTemperature() {
-        String temperature = "[['ThingSpeakData', 'Temperature'],";
-        for (ThingSpeakData data: thingSpeakDataList) {
-            temperature += "['" + data.getDate() +
-                    "', " + data.getTemperature() + "],";
-        }
-        temperature += "]";
-        return temperature;
-    }
-
     public String getTemperature(int count, LatLng latLng) {
         if(count > thingSpeakDataList.size() || count < 0) count = thingSpeakDataList.size();
         String temperature = "[['ThingSpeakData', 'Temperature'],";
-        for (int i = thingSpeakDataList.size() - count; i < thingSpeakDataList.size() - 1; i++) {
+        int counter = 0;
+        for (int i = thingSpeakDataList.size() - 1; (i >=0 ) && (counter < count); i--) {
             if(thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
                     && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
-
                 temperature += "['" + ParserISO8601.toDate(thingSpeakDataList.get(i).getDate()) +
                         "', " + thingSpeakDataList.get(i).getTemperature() + "],";
+                counter++;
 
             }
         }
-        temperature += "['" + ParserISO8601.toDate(thingSpeakDataList.get(thingSpeakDataList.size() - 1).getDate()) +
-                "', " + thingSpeakDataList.get(thingSpeakDataList.size() - 1).getTemperature() + "]";
+
         temperature += "]";
         return temperature;
     }
@@ -68,7 +58,6 @@ public class ChartData implements Parcelable {
         for (int i = thingSpeakDataList.size() - 1; i >= 0; i--) {
             if(thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
                     && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
-
                 temperature += thingSpeakDataList.get(i).getTemperature();
                 break;
             }
@@ -76,28 +65,18 @@ public class ChartData implements Parcelable {
         return temperature;
     }
 
-    public String getPressure() {
-        String pressure = "[['ThingSpeakData', 'Pressure'],";
-        for (ThingSpeakData data: thingSpeakDataList) {
-            pressure += "['" + data.getDate() +
-                    "', " + data.getPressure() + "],";
-        }
-        pressure += "]";
-        return pressure;
-    }
-
     public String getPressure(int count, LatLng latLng) {
         if(count > thingSpeakDataList.size() || count < 0) count = thingSpeakDataList.size();
         String pressure = "[['ThingSpeakData', 'Pressure'],";
-        for (int i = thingSpeakDataList.size() - count; i < thingSpeakDataList.size() - 1; i++) {
+        int counter = 0;
+        for (int i = thingSpeakDataList.size() - 1; (i >=0 ) && (counter < count); i--) {
             if(thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
                     && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
                 pressure += "['" + ParserISO8601.toDate(thingSpeakDataList.get(i).getDate()) +
                         "', " + thingSpeakDataList.get(i).getPressure() + "],";
+                counter++;
             }
         }
-        pressure += "['" + ParserISO8601.toDate(thingSpeakDataList.get(thingSpeakDataList.size() - 1).getDate()) +
-                "', " + thingSpeakDataList.get(thingSpeakDataList.size() - 1).getPressure() + "]";
         pressure += "]";
         return pressure;
     }
@@ -115,29 +94,18 @@ public class ChartData implements Parcelable {
         return pressure;
     }
 
-
-    public String getHumidity() {
-        String humidity = "[['ThingSpeakData', 'Humidity'],";
-        for (ThingSpeakData data: thingSpeakDataList) {
-            humidity += "['" + data.getDate() +
-                    "', " + data.getHumidity() + "],";
-        }
-        humidity += "]";
-        return humidity;
-    }
-
     public String getHumidity(int count, LatLng latLng) {
         if(count > thingSpeakDataList.size() || count < 0) count = thingSpeakDataList.size();
         String humidity = "[['ThingSpeakData', 'Humidity'],";
-        for (int i = thingSpeakDataList.size() - count; i < thingSpeakDataList.size() - 1; i++) {
+        int counter = 0;
+        for (int i = thingSpeakDataList.size() - 1; (i >=0 ) && (counter < count); i--) {
             if(thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
                     && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
                 humidity += "['" + ParserISO8601.toDate(thingSpeakDataList.get(i).getDate()) +
                         "', " + thingSpeakDataList.get(i).getHumidity() + "],";
+                counter++;
             }
         }
-        humidity += "['" + ParserISO8601.toDate(thingSpeakDataList.get(thingSpeakDataList.size() - 1).getDate()) +
-                "', " + thingSpeakDataList.get(thingSpeakDataList.size() - 1).getHumidity() + "]";
         humidity += "]";
         return humidity;
     }
@@ -155,30 +123,18 @@ public class ChartData implements Parcelable {
         return humidity;
     }
 
-
-    public String getPm25() {
-        String pm25 = "[['ThingSpeakData', 'PM2.5'],";
-        for (ThingSpeakData data: thingSpeakDataList) {
-            pm25 += "['" + data.getDate() +
-                    "', " + data.getPm25() + "],";
-        }
-        pm25 += "]";
-        return pm25;
-    }
-
     public String getPm25(int count, LatLng latLng) {
         if(count > thingSpeakDataList.size() || count < 0) count = thingSpeakDataList.size();
         String pm25 = "[['ThingSpeakData', 'PM2.5'],";
-        for (int i = thingSpeakDataList.size() - count; i < thingSpeakDataList.size() - 1; i++) {
+        int counter = 0;
+        for (int i = thingSpeakDataList.size() - 1; (i >=0 ) && (counter < count); i--) {
             if(thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
                     && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
                 pm25 += "['" + ParserISO8601.toDate(thingSpeakDataList.get(i).getDate()) +
                         "', " + thingSpeakDataList.get(i).getPm25() + "],";
+                counter++;
             }
         }
-
-        pm25 += "['" + ParserISO8601.toDate(thingSpeakDataList.get(thingSpeakDataList.size() - 1).getDate()) +
-                "', " + thingSpeakDataList.get(thingSpeakDataList.size() - 1).getPm25() + "]";
         pm25 += "]";
         return pm25;
     }
@@ -196,28 +152,18 @@ public class ChartData implements Parcelable {
         return pm25;
     }
 
-    public String getPm10() {
-        String pm10 = "[['ThingSpeakData', 'PM10'],";
-        for (ThingSpeakData data: thingSpeakDataList) {
-            pm10 += "['" + data.getDate() +
-                    "', " + data.getPm10() + "],";
-        }
-        pm10 += "]";
-        return pm10;
-    }
-
     public String getPm10(int count, LatLng latLng) {
         if(count > thingSpeakDataList.size() || count < 0) count = thingSpeakDataList.size();
         String pm10 = "[['ThingSpeakData', 'PM10'],";
-        for (int i = thingSpeakDataList.size() - count; i < thingSpeakDataList.size() - 1; i++) {
+        int counter = 0;
+        for (int i = thingSpeakDataList.size() - 1; (i >=0 ) && (counter < count); i--) {
             if(thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
                     && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
                 pm10 += "['" + ParserISO8601.toDate(thingSpeakDataList.get(i).getDate()) +
                         "', " + thingSpeakDataList.get(i).getPm10() + "],";
+                counter++;
             }
         }
-        pm10 += "['" + ParserISO8601.toDate(thingSpeakDataList.get(thingSpeakDataList.size() - 1).getDate()) +
-                "', " + thingSpeakDataList.get(thingSpeakDataList.size() - 1).getPm10() + "]";
         pm10 += "]";
         return pm10;
     }
@@ -243,23 +189,11 @@ public class ChartData implements Parcelable {
             if (thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
                     && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
 
-                date += ParserISO8601.toDate(thingSpeakDataList.get(i).getDate());
+                date += thingSpeakDataList.get(i).getDate();
                 break;
             }
         }
         return date;
-    }
-
-    @Override
-    public String toString() {
-        String toReturn = "[['ThingSpeakData', 'Temperature', 'Pressure', 'Humidity', 'PM2.5', 'PM10'],";
-
-        for (ThingSpeakData data: thingSpeakDataList) {
-            toReturn += data.toString() + ",";
-        }
-
-        toReturn += "]";
-        return toReturn;
     }
 
     public String toString(int count, LatLng latLng) {
@@ -275,6 +209,30 @@ public class ChartData implements Parcelable {
 
         toReturn += "]";
         return toReturn;
+    }
+
+    public int getMeasureCount(LatLng latLng) {
+        int counter = 0;
+        System.out.println(thingSpeakDataList.size());
+        for (int i = thingSpeakDataList.size() - 1; i >= 0; i--) {
+            if (thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
+                    && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
+                counter++;
+            }
+        }
+        return counter;
+    }
+
+    public float getAvgPms(LatLng latLng) {
+        float pm = 0;
+        for (ThingSpeakData data :
+                thingSpeakDataList) {
+            if (data.getLongtitude() == latLng.longitude
+                    && data.getLatitude() == latLng.latitude) {
+                pm += (data.getPm10() + data.getPm25())/2;
+            }
+        }
+        return pm / thingSpeakDataList.size();
     }
 
     protected ChartData(Parcel in) {
