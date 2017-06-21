@@ -6,6 +6,7 @@ import android.widget.Toast;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 
@@ -13,6 +14,9 @@ import java.util.ArrayList;
 
 import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
 import ovh.olo.smok.smokwroclawski.Activity.SensorActivity;
+import ovh.olo.smok.smokwroclawski.Parser.ParserISO8601;
+import ovh.olo.smok.smokwroclawski.ThingSpeak.ChartData;
+import ovh.olo.smok.smokwroclawski.ThingSpeak.ThingSpeakData;
 
 /**
  * Created by Michal on 2017-06-01.
@@ -24,7 +28,51 @@ public class MarkerManager {
     public final static String DATA_LATITUDE = "DATA_LATITUDE";
     public final static String DATA_LONGTITUDE = "DATA_LONGTITUDE";
 
+    public static void setUpAllMarkers(final ChartData data) {
+
+        MainActivity.instance.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+
+                for (ThingSpeakData tsData: data.getThingSpeakDataList()) {
+                    MarkerFactory markerFactory = new MarkerFactory();
+
+                    tsData.setLatitude(Math.round(
+                            tsData.getLatitude() * 1000f
+                    )/1000f);
+                    tsData.setLongtitude(Math.round(
+                            tsData.getLongtitude() * 1000f
+                    )/1000f);
+
+                    LatLng latLng = new LatLng(
+                            tsData.getLatitude(),
+                            tsData.getLongtitude()
+                    );
+                    markerFactory.add(latLng,
+                            "(" + Math.round(latLng.latitude * 1000d ) / 1000d + ", "
+                            + Math.round(latLng.longitude * 1000d ) / 1000d + ")",
+
+                            "Last measure ( "
+                            + ParserISO8601.toDate(data.getLastDate(latLng)) +
+                            " ): \n" +
+                            "Temperature: " + data.getLastTemeprature(latLng) + "\n" +
+                            "Humidity: " + data.getLastHumidity(latLng) + "\n" +
+                            "Pressure: " + data.getLastPressure(latLng) + "\n" +
+                            "PM 2.5: " + data.getLastPM25(latLng) + "\n" +
+                            "PM 10: " + data.getLastPM10(latLng),
+
+                            (int) data.getAvgPms(latLng)
+                    );
+                }
+                setUpMarkersListeners();
+                animate();
+            }
+
+        });
+    }
+
     public static void setUpMarkersListeners() {
+        if(MainActivity.instance.getMarkers().isEmpty()) return;
 
         MainActivity.instance.getmMap().setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
             @Override
@@ -52,6 +100,8 @@ public class MarkerManager {
     }
 
     public static void animate() {
+        if(MainActivity.instance.getMarkers().isEmpty()) return;
+
         LatLngBounds.Builder builder = new LatLngBounds.Builder();
         for (Marker marker : MainActivity.instance.getMarkers()) {
             builder.include(marker.getPosition());

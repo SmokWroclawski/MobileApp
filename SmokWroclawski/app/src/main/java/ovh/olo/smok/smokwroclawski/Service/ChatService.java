@@ -17,16 +17,12 @@ import android.widget.Toast;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.Exchanger;
 
 import ovh.olo.smok.smokwroclawski.Activity.DeviceActivity;
 import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
-import ovh.olo.smok.smokwroclawski.Activity.SensorActivity;
-import ovh.olo.smok.smokwroclawski.Github.GithubReader;
-import ovh.olo.smok.smokwroclawski.InternetChecker;
 import ovh.olo.smok.smokwroclawski.Parser.PacketParser;
 import ovh.olo.smok.smokwroclawski.R;
-import ovh.olo.smok.smokwroclawski.Refresher;
+import ovh.olo.smok.smokwroclawski.Refresher.Refresher;
 import ovh.olo.smok.smokwroclawski.ThingSpeak.SendingQueue;
 
 public class ChatService extends Service {
@@ -86,10 +82,8 @@ public class ChatService extends Service {
 						@Override
 						public void run() {
 							MainActivity.instance.clearAllDatas();
-							if(InternetChecker.isOnline())
-								new GithubReader().execute();
-							else
-								MainActivity.instance.checkPermissionsAndStartSearching();
+
+							MainActivity.instance.checkPermissionsAndStartSearching();
 						}
 					});
 

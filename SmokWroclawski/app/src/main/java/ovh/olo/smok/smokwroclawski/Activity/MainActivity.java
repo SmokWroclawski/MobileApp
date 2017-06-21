@@ -5,15 +5,11 @@ import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
@@ -39,15 +35,12 @@ import android.support.v4.app.FragmentActivity;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.Polyline;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -60,10 +53,11 @@ import java.util.TimerTask;
 
 import ovh.olo.smok.smokwroclawski.Adapter.DrawerListAdapter;
 import ovh.olo.smok.smokwroclawski.Adapter.MyInfoWindowAdapter;
-import ovh.olo.smok.smokwroclawski.ConnectionRefresher;
+import ovh.olo.smok.smokwroclawski.Manager.BluetoothController;
+import ovh.olo.smok.smokwroclawski.Refresher.ConnectionRefresher;
 import ovh.olo.smok.smokwroclawski.Github.GithubReader;
-import ovh.olo.smok.smokwroclawski.InternetChecker;
-import ovh.olo.smok.smokwroclawski.LocationGPSManager;
+import ovh.olo.smok.smokwroclawski.Validator.InternetValidator;
+import ovh.olo.smok.smokwroclawski.Manager.LocationGPSManager;
 import ovh.olo.smok.smokwroclawski.Markers.MarkerManager;
 import ovh.olo.smok.smokwroclawski.Object.NavItem;
 import ovh.olo.smok.smokwroclawski.Object.SensorConfigData;
@@ -76,34 +70,28 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener,
         LocationListener {
 
-    private BluetoothAdapter mBluetoothAdapter;
     private static final int REQUEST_ENABLE_BT = 1;
-
     public static final int REQUEST_CHECK_SETTINGS = 3;
 
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
     private static final int PERMISSION_REQUEST_FINE_LOCATION = 3;
     private static final int PERMISSION_REQUEST_EXTERNAL_STORAGE = 2;
-    private static final long SCAN_PERIOD = 3000;
 
     public static final String SENSOR_NAME = "SENSOR";
 
     public List<Marker> markers = new ArrayList<>();
-    public List<Polyline> polylines = new ArrayList<>();
 
     private Dialog mDialog;
-    public static List<BluetoothDevice> mDevices = new ArrayList<BluetoothDevice>();
     public static MainActivity instance = null;
     public List<String> tabuList = new ArrayList<>();
     public List<SensorConfigData> sensorConfigDatas = new ArrayList<>();
     private ChartData data = null;
 
-    private LocationManager manager;
+    private BluetoothController bluetoothController;
+    private LocationGPSManager locationGPSManager;
+
     private GoogleMap mMap;
-    private Location myLocation;
-    private GoogleApiClient googleApiClient;
     private CameraPosition currCameraPosition;
-    private LocationRequest locationRequest;
 
     private ListView mDrawerList;
     private RelativeLayout mDrawerPane;
@@ -139,6 +127,8 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         });
         instance = MainActivity.this;
 
+        bluetoothController = new BluetoothController();
+
         data = new ChartData();
         yourLocation = (TextView) findViewById(R.id.yourLocation);
         timer = (TextView) findViewById(R.id.timer);
@@ -147,8 +137,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         getLayoutItems();
 
 
-        preStartForLocation();
-        locationRequest = getLocationRequest();
+        locationGPSManager = new LocationGPSManager();
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -160,17 +149,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         mDrawerList.setAdapter(adapter);
         addMenuItems();
         setListeners();
-
-
-
-    }
-
-    private LocationRequest getLocationRequest() {
-        LocationRequest locationRequest = LocationRequest.create();
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        locationRequest.setInterval(30 * 1000);
-        locationRequest.setFastestInterval(5 * 1000);
-        return locationRequest;
     }
 
     public void clearAllDatas() {
@@ -213,25 +191,18 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-    public void setMaxProgressBar(int max) {
-        sendProgressBar.setMax(max);
-    }
-
     public void updateMaxProgressBar(int max) {
         sendProgressBar.setMax(sendProgressBar.getMax() + max);
     }
 
     public void checkPermissionsAndStartSearching() {
-        if (!getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_BLUETOOTH_LE)) {
+        if (!bluetoothController.isBleFeature()) {
             Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT)
                     .show();
             finish();
         }
 
-        final BluetoothManager mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        mBluetoothAdapter = mBluetoothManager.getAdapter();
-        if (mBluetoothAdapter == null) {
+        if (bluetoothController.isNotBleSupported()) {
             Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT)
                     .show();
             finish();
@@ -249,14 +220,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
             mMap.setMyLocationEnabled(true);
         }
         if (ContextCompat.checkSelfPermission(MainActivity.this,
-                Manifest.permission.ACCESS_COARSE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-
-            ActivityCompat.requestPermissions(MainActivity.this,
-                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                    PERMISSION_REQUEST_COARSE_LOCATION);
-        }
-        if (ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
 
@@ -264,17 +227,16 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                     new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                     PERMISSION_REQUEST_EXTERNAL_STORAGE);
         }
-        manager = (LocationManager) getSystemService( Context.LOCATION_SERVICE );
-        if (!mBluetoothAdapter.isEnabled()) {
+        if (!bluetoothController.isBleEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
 
-        if ( !manager.isProviderEnabled( LocationManager.GPS_PROVIDER ) ) {
-            new LocationGPSManager(googleApiClient, locationRequest).requestGpsFromSettingsApi();
+        if ( !locationGPSManager.isProviderEnabled() ) {
+            locationGPSManager.requestGpsFromSettingsApi();
         }
 
-        startFindDevices();
+        startFindDevices(true);
     }
 
     private void setListeners() {
@@ -307,7 +269,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void selectItemFromDrawer(int position) {
         setSelectedItemId(position);
-        //todo: switch case zalezny od kliknietego itemu w menu
 
         if (position != -1) {
             mDrawerList.setItemChecked(position, true);
@@ -339,40 +300,27 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
         switch (requestCode) {
             case PERMISSION_REQUEST_COARSE_LOCATION: {
-                // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay!
                     if(!searchStarted) {
                         searchStarted = true;
-                        startFindDevices();
+                        startFindDevices(true);
                     }
                 } else {
-
-                    if (isAndroidApi(23)) {
-                        this.finishAffinity();
-                    }
-                    // permission denied
+                    this.finishAffinity();
                 }
                 return;
             }
 
             case PERMISSION_REQUEST_EXTERNAL_STORAGE: {
-                // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay!
-
                     if(!searchStarted) {
                         searchStarted = true;
-                        startFindDevices();
+                        startFindDevices(true);
                     }
                 } else {
-
-                    if (isAndroidApi(23)) {
-                        this.finishAffinity();
-                    }
-                    //permission denied
+                    this.finishAffinity();
                 }
                 return;
             }
@@ -380,48 +328,43 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
             case PERMISSION_REQUEST_FINE_LOCATION: {
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay!
                     mMap.setMyLocationEnabled(true);
+                    locationGPSManager.setMyLocation();
+                    locationGPSManager.startLocationUpdates();
+
                     if(!searchStarted) {
                         searchStarted = true;
-                        startFindDevices();
+                        startFindDevices(true);
                     }
                 } else {
-
-                    if (isAndroidApi(23)) {
-                        this.finishAffinity();
-                    }
-                    // permission denied
+                    this.finishAffinity();
                 }
                 return;
             }
-            // other 'case' lines to check for other
-            // permissions this app might request
         }
     }
 
-    private boolean isAndroidApi(int apiLevel) {
-        return Build.VERSION.SDK_INT >= apiLevel;
-    }
-
-    private void startFindDevices() {
-        if ( manager.isProviderEnabled( LocationManager.GPS_PROVIDER ) &&
-                mBluetoothAdapter.isEnabled()
+    public void startFindDevices(boolean isMainActivity) {
+        if ( locationGPSManager.isProviderEnabled() &&
+                bluetoothController.isBleEnabled()
 
                 && ContextCompat.checkSelfPermission(MainActivity.this,
-                Manifest.permission.ACCESS_COARSE_LOCATION)
+                Manifest.permission.ACCESS_FINE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED
 
                 &&  ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE)
                 == PackageManager.PERMISSION_GRANTED)
         {
-            findDevices();
+            if(isMainActivity && InternetValidator.isOnline())
+                new GithubReader().execute();
+            else
+                findDevices();
         }
     }
 
     private void findDevices() {
-        scanLeDevice();
+        bluetoothController.scanLeDevice();
 
         showRoundProcessDialog(MainActivity.this, R.layout.loading_process_dialog_anim);
 
@@ -437,7 +380,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
             }
 
 
-        }, SCAN_PERIOD);
+        }, BluetoothController.SCAN_PERIOD);
     }
 
     public void showRoundProcessDialog(Context mContext, int layout) {
@@ -460,40 +403,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         mDialog.setContentView(layout);
     }
 
-    private void scanLeDevice() {
-        new Thread() {
-
-            @Override
-            public void run() {
-                mBluetoothAdapter.startLeScan(mLeScanCallback);
-
-                try {
-                    Thread.sleep(SCAN_PERIOD);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
-                mBluetoothAdapter.stopLeScan(mLeScanCallback);
-            }
-        }.start();
-    }
-
-    private BluetoothAdapter.LeScanCallback mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
-
-        @Override
-        public void onLeScan(final BluetoothDevice device, final int rssi,
-                             byte[] scanRecord) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    if (device == null) return;
-                    if (mDevices.indexOf(device) == -1)
-                        mDevices.add(device);
-                }
-            });
-        }
-    };
-
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 
@@ -502,7 +411,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                 case Activity.RESULT_OK:
                     if(!searchStarted) {
                         searchStarted = true;
-                        startFindDevices();
+                        startFindDevices(true);
                     }
                     break;
                 case Activity.RESULT_CANCELED:
@@ -512,9 +421,12 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
                     break;
             }
         }
-//        startFindDevices(coarseLocFlag, storageFlag);
 
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    public TextView getYourLocation() {
+        return yourLocation;
     }
 
     public GoogleMap getmMap() {
@@ -529,12 +441,8 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         this.markers = markers;
     }
 
-    public List<Polyline> getPolylines() {
-        return polylines;
-    }
-
-    public Location getMyLocation() {
-        return myLocation;
+    public LocationGPSManager getLocationGPSManager() {
+        return locationGPSManager;
     }
 
     public TextView getTimer() {
@@ -577,28 +485,6 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
         this.data.setThingSpeakDataList(newList);
     }
 
-    private void preStartForLocation() {
-        if (googleApiClient == null) {
-            googleApiClient = new GoogleApiClient.Builder(this)
-                    .addConnectionCallbacks(this)
-                    .addOnConnectionFailedListener(this)
-                    .addApi(LocationServices.API)
-                    .build();
-        }
-
-    }
-
-    private void setMyLocation() {
-        myLocation = LocationServices.FusedLocationApi.getLastLocation(
-                googleApiClient);
-        yourLocation.setText("Lat:" + myLocation.getLatitude() + " Lng: " + myLocation.getLongitude());
-    }
-
-    protected void startLocationUpdates() {
-        LocationServices.FusedLocationApi.requestLocationUpdates(
-                googleApiClient, locationRequest, this);
-    }
-
     @Override
     public void onBackPressed() {
         if (mDrawerLayout.isDrawerOpen(mDrawerPane)) {
@@ -625,7 +511,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     protected void onStart() {
-        googleApiClient.connect();
+        locationGPSManager.getGoogleApiClient().connect();
         if(mMap != null && currCameraPosition != null) {
             mMap.moveCamera(CameraUpdateFactory.newCameraPosition(currCameraPosition));
             currCameraPosition = null;
@@ -635,7 +521,7 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     protected void onStop() {
-        googleApiClient.disconnect();
+        locationGPSManager.getGoogleApiClient().disconnect();
         if(mMap != null) {
             currCameraPosition = mMap.getCameraPosition();
         }
@@ -646,20 +532,15 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.getUiSettings().setMapToolbarEnabled(false);
-        mMap.setMyLocationEnabled(true);
 
         mMap.setInfoWindowAdapter(new MyInfoWindowAdapter(MainActivity.this));
-        if(InternetChecker.isOnline())
-            new GithubReader().execute();
-        else
-            checkPermissionsAndStartSearching();
+        checkPermissionsAndStartSearching();
     }
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        setMyLocation();
-
-        startLocationUpdates();
+        locationGPSManager.setMyLocation();
+        locationGPSManager.startLocationUpdates();
     }
 
     @Override
@@ -674,7 +555,8 @@ public class MainActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onLocationChanged(Location location) {
-        myLocation = location;
-        yourLocation.setText("Lat:" + myLocation.getLatitude() + " Lng: " + myLocation.getLongitude());
+        locationGPSManager.setMyLocation(location);
+        yourLocation.setText("Lat:" + locationGPSManager.getMyLocation().getLatitude()
+                + " Lng: " + locationGPSManager.getMyLocation().getLongitude());
     }
 }

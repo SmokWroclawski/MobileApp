@@ -213,7 +213,6 @@ public class ChartData implements Parcelable {
 
     public int getMeasureCount(LatLng latLng) {
         int counter = 0;
-        System.out.println(thingSpeakDataList.size());
         for (int i = thingSpeakDataList.size() - 1; i >= 0; i--) {
             if (thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
                     && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
@@ -224,15 +223,17 @@ public class ChartData implements Parcelable {
     }
 
     public float getAvgPms(LatLng latLng) {
+        int count = 5;
+        if(thingSpeakDataList.size() < count) count = thingSpeakDataList.size();
         float pm = 0;
-        for (ThingSpeakData data :
-                thingSpeakDataList) {
-            if (data.getLongtitude() == latLng.longitude
-                    && data.getLatitude() == latLng.latitude) {
-                pm += (data.getPm10() + data.getPm25())/2;
+        int i = 0;
+        for (i = thingSpeakDataList.size() - 1; i >= thingSpeakDataList.size() - count; i--) {
+            if (thingSpeakDataList.get(i).getLongtitude() == latLng.longitude
+                    && thingSpeakDataList.get(i).getLatitude() == latLng.latitude) {
+                pm += (thingSpeakDataList.get(i).getPm10() + thingSpeakDataList.get(i).getPm25())/2;
             }
         }
-        return pm / thingSpeakDataList.size();
+        return pm / count;
     }
 
     protected ChartData(Parcel in) {

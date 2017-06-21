@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
-import ovh.olo.smok.smokwroclawski.DataChecker;
+import ovh.olo.smok.smokwroclawski.Validator.DataValidator;
 import ovh.olo.smok.smokwroclawski.Github.GithubDataWorker;
-import ovh.olo.smok.smokwroclawski.InternetChecker;
+import ovh.olo.smok.smokwroclawski.Validator.InternetValidator;
 import ovh.olo.smok.smokwroclawski.Object.WeatherData;
 import ovh.olo.smok.smokwroclawski.Worker.FileWorker;
 
@@ -49,10 +49,10 @@ public class SendingQueue {
         try {
             weatherData.setTimeStamp(System.currentTimeMillis()/1000);
             weatherData.setLongtitude(Math.round(
-                    MainActivity.instance.getMyLocation().getLongitude() * 1000d
+                    MainActivity.instance.getLocationGPSManager().getMyLocation().getLongitude() * 1000d
                 )/1000d);
             weatherData.setLatitude(Math.round(
-                    MainActivity.instance.getMyLocation().getLatitude() * 1000d
+                    MainActivity.instance.getLocationGPSManager().getMyLocation().getLatitude() * 1000d
                 )/1000d);
             fileWorker.appendToFile(filename, weatherData.toString());
 
@@ -67,7 +67,7 @@ public class SendingQueue {
      * Reads file and sends data from file
      */
     private void sendAndDelete() {
-        if(!InternetChecker.isOnline()) {
+        if(!InternetValidator.isOnline()) {
             return;
         }
         final AtomicInteger counter = new AtomicInteger(0);
@@ -107,7 +107,7 @@ public class SendingQueue {
             public void run() {
                 MainActivity.instance.updateProgressBar();
                 int responseBodyCode = 0;
-                boolean isCorrectData = DataChecker.isCorrect(weatherData);
+                boolean isCorrectData = DataValidator.isCorrect(weatherData);
                 if(isCorrectData) {
                     responseBodyCode = thingSpeakSender.send(weatherData);
                 }

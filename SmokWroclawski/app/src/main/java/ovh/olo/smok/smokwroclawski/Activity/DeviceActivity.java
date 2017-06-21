@@ -17,7 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import ovh.olo.smok.smokwroclawski.InternetChecker;
+import ovh.olo.smok.smokwroclawski.Manager.BluetoothController;
+import ovh.olo.smok.smokwroclawski.Validator.InternetValidator;
 import ovh.olo.smok.smokwroclawski.Object.SensorConfigData;
 import ovh.olo.smok.smokwroclawski.R;
 import ovh.olo.smok.smokwroclawski.Service.ChatService;
@@ -55,7 +56,8 @@ public class DeviceActivity extends Activity {
 
 		registerReceiver(bReceiver, new IntentFilter("message"));
 
-		devices = (ArrayList<BluetoothDevice>) MainActivity.mDevices;
+		devices = (ArrayList<BluetoothDevice>) BluetoothController.mDevices;
+
 
 		if (devices.isEmpty()) {
 			Toast.makeText(getApplicationContext(), R.string.no_devices_found, Toast.LENGTH_SHORT).show();
@@ -69,7 +71,12 @@ public class DeviceActivity extends Activity {
 			map.put(DEVICE_ADDRESS, device.getAddress());
 			listItems.add(map);
 			if (device.getName() == null) continue;
-			if (device.getName().contains(DEFAULT_DEVICE_NAME)) sensorDevicesCount++;
+			if (device.getName().equals(DEFAULT_DEVICE_NAME)) sensorDevicesCount++;
+		}
+
+		if(sensorDevicesCount == 0) {
+			runAndDestory();
+			return;
 		}
 
 		devicesCount = listItems.size();
@@ -144,22 +151,24 @@ public class DeviceActivity extends Activity {
 		}
 	};
 
-	public static volatile Boolean done = false;
+	public volatile Boolean done = false;
 
 	private void runAndDestory() {
-		if(!InternetChecker.isOnline()) {
+		if(!InternetValidator.isOnline()) {
 			if(progressDialog != null)
 				progressDialog.dismiss();
 			this.finish();
-
+            return;
 		}
-		if(progressDialog == null) {
+
+		if(progressDialog == null || !progressDialog.isShowing()) {
 			progressDialog = ProgressDialog.show(MainActivity.instance, "", "Processing...", true);
 		}
 
 		progressDialog.setMessage("Receiving and analysing data...");
-		new Handler().post(new Runnable() {
 
+
+		new Handler().post(new Runnable() {
 			@Override
 			public void run() {
 				for (SensorConfigData scd : MainActivity.instance.getSensorConfigDatas()) {
@@ -176,10 +185,14 @@ public class DeviceActivity extends Activity {
 
 					done = false;
 				}
+
+				DeviceActivity.instance.finish();
 			}
 		});
 
-		this.finish();
+
+
+//		this.finish();
 	}
 
 	@Override

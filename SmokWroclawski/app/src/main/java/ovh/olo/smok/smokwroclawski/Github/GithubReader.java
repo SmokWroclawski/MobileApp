@@ -78,7 +78,7 @@ public class GithubReader extends AsyncTask {
             switch (msg.what) {
                 case 0:
                     pd.dismiss();
-                    MainActivity.instance.checkPermissionsAndStartSearching();
+                    MainActivity.instance.startFindDevices(false);
                     break;
                 default:
                     break;

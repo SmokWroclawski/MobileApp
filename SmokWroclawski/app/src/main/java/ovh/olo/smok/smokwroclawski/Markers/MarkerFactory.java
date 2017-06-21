@@ -52,41 +52,6 @@ public class MarkerFactory {
             return BitmapDescriptorFactory.HUE_AZURE;
     }
 
-    public void addLine(LatLng startPoint,
-                        LatLng goalPoint) {
-        addLine(startPoint, goalPoint, Color.RED);
-    }
-
-    public void addLine(LatLng startPoint, LatLng goalPoint,
-                        int color) {
-        Polyline polyline = map.addPolyline(
-                new PolylineOptions()
-                        .add(startPoint, goalPoint)
-                        .width(10)
-                        .color(color)
-                        .clickable(true)
-        );
-
-        MainActivity.instance.getPolylines().add(polyline);
-    }
-
-    public void addCurveLine(List<LatLng> pointsList) {
-        addCurveLine(pointsList, Color.RED);
-    }
-
-    public void addCurveLine(List<LatLng> pointsList,
-                             int color) {
-        PolylineOptions options = new PolylineOptions();
-        for (LatLng point: pointsList) {
-            options.add(point);
-        }
-        options.width(10).color(color).clickable(true);
-
-        Polyline polyline = map.addPolyline(options);
-
-        MainActivity.instance.getPolylines().add(polyline);
-    }
-
     private Marker getMarker(String title) {
         for (Marker marker:
                 MainActivity.instance.getMarkers()) {

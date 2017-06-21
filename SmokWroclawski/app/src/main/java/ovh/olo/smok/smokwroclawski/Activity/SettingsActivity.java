@@ -5,10 +5,9 @@ import android.app.Activity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.SeekBar;
-import android.widget.TextClock;
 import android.widget.TextView;
 
-import ovh.olo.smok.smokwroclawski.ConnectionRefresher;
+import ovh.olo.smok.smokwroclawski.Refresher.ConnectionRefresher;
 import ovh.olo.smok.smokwroclawski.R;
 
 public class SettingsActivity extends Activity {

@@ -16,7 +16,7 @@ import com.google.android.gms.maps.model.LatLng;
 import java.util.Arrays;
 import java.util.List;
 
-import ovh.olo.smok.smokwroclawski.InternetChecker;
+import ovh.olo.smok.smokwroclawski.Validator.InternetValidator;
 import ovh.olo.smok.smokwroclawski.Markers.MarkerManager;
 import ovh.olo.smok.smokwroclawski.R;
 import ovh.olo.smok.smokwroclawski.ThingSpeak.ChartData;
@@ -76,7 +76,7 @@ public class SensorActivity extends Activity {
                 getIntent().getDoubleExtra(MarkerManager.DATA_LONGTITUDE, 0)
                 );
 
-        if(!InternetChecker.isOnline()) {
+        if(!InternetValidator.isOnline()) {
             Toast.makeText(MainActivity.instance, "Required internet access!", Toast.LENGTH_LONG).show();
             this.finish();
         } else {

@@ -1,6 +1,7 @@
 package ovh.olo.smok.smokwroclawski.ThingSpeak;
 
-import com.google.android.gms.maps.model.LatLng;
+import android.util.Log;
+
 import com.squareup.okhttp.Callback;
 import com.squareup.okhttp.OkHttpClient;
 import com.squareup.okhttp.Request;
@@ -14,10 +15,8 @@ import java.io.IOException;
 
 import ovh.olo.smok.smokwroclawski.Activity.DeviceActivity;
 import ovh.olo.smok.smokwroclawski.Activity.MainActivity;
-import ovh.olo.smok.smokwroclawski.InternetChecker;
-import ovh.olo.smok.smokwroclawski.Markers.MarkerFactory;
+import ovh.olo.smok.smokwroclawski.Validator.InternetValidator;
 import ovh.olo.smok.smokwroclawski.Markers.MarkerManager;
-import ovh.olo.smok.smokwroclawski.Parser.ParserISO8601;
 
 public class ThingSpeakReceiver {
     private long channelId;
@@ -37,7 +36,7 @@ public class ThingSpeakReceiver {
     }
 
     public void run() {
-        if(!InternetChecker.isOnline()) return;
+        if(!InternetValidator.isOnline()) return;
         try {
             doGetRequest();
         } catch (IOException e) {
@@ -60,45 +59,16 @@ public class ThingSpeakReceiver {
                     @Override
                     public void onResponse(Response response) throws IOException {
                         String res = response.body().string();
-                        System.out.println(res);
+                        Log.i(ThingSpeakReceiver.class.getSimpleName(), "Data received from thingspeak");
                         try {
                             data = getDataFromJson(res);
                             MainActivity.instance.addData(data);
 
-
-                            MainActivity.instance.runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    for (ThingSpeakData tsData: data.getThingSpeakDataList()) {
-                                        MarkerFactory markerFactory = new MarkerFactory();
-                                        LatLng latLng = new LatLng(
-                                                tsData.getLatitude(),
-                                                tsData.getLongtitude()
-                                        );
-                                        markerFactory.add(latLng,
-                                                "(" + Math.round(latLng.latitude * 1000d ) / 1000d + ", "
-                                                        + Math.round(latLng.longitude * 1000d ) / 1000d + ")",
-
-                                                "Last measure ( "
-                                                        + ParserISO8601.toDate(data.getLastDate(latLng)) +
-                                                        " ): \n" +
-                                                "Temperature: " + data.getLastTemeprature(latLng) + "\n" +
-                                                "Humidity: " + data.getLastHumidity(latLng) + "\n" +
-                                                "Pressure: " + data.getLastPressure(latLng) + "\n" +
-                                                "PM 2.5: " + data.getLastPM25(latLng) + "\n" +
-                                                "PM 10: " + data.getLastPM10(latLng),
-
-                                                (int) data.getAvgPms(latLng)
-                                        );
-                                    }
-
-                                    MarkerManager.setUpMarkersListeners();
-
-                                    MarkerManager.animate();
-                                }
-                            });
+                            MarkerManager.setUpAllMarkers(data);
                             DeviceActivity.instance.getProgressDialog().dismiss();
-                            DeviceActivity.done = true;
+//                            MarkerManager.setUpAllMarkers(data);
+
+                            DeviceActivity.instance.done = true;
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
